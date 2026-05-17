@@ -19,11 +19,20 @@ export class CosmosAdapter {
 
   constructor() {
     const config = getConfig();
-    const credential = new DefaultAzureCredential();
-    this.client = new CosmosClient({
-      endpoint: config.COSMOS_ENDPOINT,
-      aadCredentials: credential,
-    });
+    // Use account key if available (local dev), otherwise DefaultAzureCredential (Managed Identity)
+    const cosmosKey = process.env.COSMOS_KEY;
+    if (cosmosKey) {
+      this.client = new CosmosClient({
+        endpoint: config.COSMOS_ENDPOINT,
+        key: cosmosKey,
+      });
+    } else {
+      const credential = new DefaultAzureCredential();
+      this.client = new CosmosClient({
+        endpoint: config.COSMOS_ENDPOINT,
+        aadCredentials: credential,
+      });
+    }
   }
 
   async ensureInitialized(): Promise<void> {

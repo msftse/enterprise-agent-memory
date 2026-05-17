@@ -1,5 +1,6 @@
 import {
   BlobServiceClient,
+  StorageSharedKeyCredential,
   type ContainerClient,
 } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
@@ -17,11 +18,15 @@ export class BlobStorageAdapter {
   private getBlobService(): BlobServiceClient {
     if (!this.blobService) {
       const config = getConfig();
-      const credential = new DefaultAzureCredential();
-      this.blobService = new BlobServiceClient(
-        config.STORAGE_ACCOUNT_URL,
-        credential,
-      );
+      const storageKey = process.env.STORAGE_ACCOUNT_KEY;
+      if (storageKey) {
+        const accountName = new URL(config.STORAGE_ACCOUNT_URL).hostname.split('.')[0];
+        const sharedKeyCred = new StorageSharedKeyCredential(accountName, storageKey);
+        this.blobService = new BlobServiceClient(config.STORAGE_ACCOUNT_URL, sharedKeyCred);
+      } else {
+        const credential = new DefaultAzureCredential();
+        this.blobService = new BlobServiceClient(config.STORAGE_ACCOUNT_URL, credential);
+      }
     }
     return this.blobService;
   }
