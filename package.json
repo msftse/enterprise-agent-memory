@@ -1,0 +1,56 @@
+{
+  "name": "enterprise-agent-memory",
+  "version": "0.1.0",
+  "description": "Enterprise Azure agent memory platform — multi-tenant, scalable, compliant. Cosmos DB + AI Search + Azure OpenAI.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "deploy": "az containerapp update --name $APP_NAME --resource-group $RESOURCE_GROUP --image $ACR_IMAGE"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/msftse/enterprise-agent-memory.git"
+  },
+  "keywords": ["agent-memory", "azure", "cosmos-db", "ai-search", "multi-tenant", "enterprise", "llm"],
+  "author": "Roey Zalta",
+  "dependencies": {
+    "@azure/cosmos": "^4.2.0",
+    "@azure/identity": "^4.5.0",
+    "@azure/monitor-opentelemetry": "^1.8.0",
+    "@azure/openai": "^2.0.0",
+    "@azure/search-documents": "^12.1.0",
+    "@azure/storage-blob": "^12.26.0",
+    "@azure/storage-file-datalake": "^12.25.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/rate-limit": "^10.2.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-node": "^0.57.0",
+    "fastify": "^5.2.0",
+    "jose": "^6.0.0",
+    "nanoid": "^5.0.9",
+    "openai": "^4.104.0",
+    "pino": "^9.6.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "Apache-2.0"
+}
