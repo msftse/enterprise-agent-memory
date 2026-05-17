@@ -117,7 +117,7 @@ export async function traverseGraph(
   return { nodes: allNodes, edges: allEdges, depth: maxDepth };
 }
 
-// LLM-based entity extraction from observation text
+// LLM-based entity extraction from observation text with deduplication
 export async function extractEntities(
   tenantId: string,
   text: string,
@@ -130,38 +130,98 @@ export async function extractEntities(
   const nodeNameToId = new Map<string, string>();
 
   for (const n of extracted.nodes) {
-    const node = await createGraphNode(
-      tenantId,
-      {
-        type: n.type as any,
-        name: n.name,
-        properties: {},
-        sourceObservationIds: [sourceObservationId],
-      },
-      ctx,
-    );
-    nodes.push(node);
-    nodeNameToId.set(n.name, node.id);
+    // Deduplicate: check if a node with the same name and type already exists
+    const existing = await findNodeByName(tenantId, n.name, n.type, ctx);
+    if (existing) {
+      // Merge source observation ID into existing node
+      if (!existing.sourceObservationIds.includes(sourceObservationId)) {
+        existing.sourceObservationIds.push(sourceObservationId);
+        existing.updatedAt = new Date().toISOString();
+        await ctx.cosmos.update('graph-nodes', existing);
+      }
+      nodes.push(existing);
+      nodeNameToId.set(n.name, existing.id);
+    } else {
+      const node = await createGraphNode(
+        tenantId,
+        {
+          type: n.type as any,
+          name: n.name,
+          properties: {},
+          sourceObservationIds: [sourceObservationId],
+        },
+        ctx,
+      );
+      nodes.push(node);
+      nodeNameToId.set(n.name, node.id);
+    }
   }
 
   for (const e of extracted.edges) {
     const sourceId = nodeNameToId.get(e.source);
     const targetId = nodeNameToId.get(e.target);
     if (sourceId && targetId) {
-      const edge = await createGraphEdge(
-        tenantId,
-        {
-          type: e.type as any,
-          sourceNodeId: sourceId,
-          targetNodeId: targetId,
-          weight: 1.0,
-          sourceObservationIds: [sourceObservationId],
-        },
-        ctx,
-      );
-      edges.push(edge);
+      // Deduplicate: check if this edge already exists
+      const existingEdge = await findEdge(tenantId, sourceId, targetId, e.type, ctx);
+      if (existingEdge) {
+        if (!existingEdge.sourceObservationIds.includes(sourceObservationId)) {
+          existingEdge.sourceObservationIds.push(sourceObservationId);
+          existingEdge.weight = Math.min(10, existingEdge.weight + 0.5);
+          await ctx.cosmos.update('graph-edges', existingEdge);
+        }
+        edges.push(existingEdge);
+      } else {
+        const edge = await createGraphEdge(
+          tenantId,
+          {
+            type: e.type as any,
+            sourceNodeId: sourceId,
+            targetNodeId: targetId,
+            weight: 1.0,
+            sourceObservationIds: [sourceObservationId],
+          },
+          ctx,
+        );
+        edges.push(edge);
+      }
     }
   }
 
   return { nodes, edges };
+}
+
+async function findNodeByName(
+  tenantId: string,
+  name: string,
+  type: string,
+  ctx: GraphContext,
+): Promise<GraphNode | null> {
+  const results = await ctx.cosmos.query<GraphNode>('graph-nodes', {
+    query: 'SELECT * FROM c WHERE c.tenantId = @tenantId AND c.name = @name AND c.type = @type',
+    parameters: [
+      { name: '@tenantId', value: tenantId },
+      { name: '@name', value: name },
+      { name: '@type', value: type },
+    ],
+  });
+  return results[0] ?? null;
+}
+
+async function findEdge(
+  tenantId: string,
+  sourceNodeId: string,
+  targetNodeId: string,
+  type: string,
+  ctx: GraphContext,
+): Promise<GraphEdge | null> {
+  const results = await ctx.cosmos.query<GraphEdge>('graph-edges', {
+    query: 'SELECT * FROM c WHERE c.tenantId = @tenantId AND c.sourceNodeId = @src AND c.targetNodeId = @tgt AND c.type = @type',
+    parameters: [
+      { name: '@tenantId', value: tenantId },
+      { name: '@src', value: sourceNodeId },
+      { name: '@tgt', value: targetNodeId },
+      { name: '@type', value: type },
+    ],
+  });
+  return results[0] ?? null;
 }

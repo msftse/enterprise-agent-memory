@@ -8,6 +8,7 @@ import type {
   AuditEntry,
 } from '../types/models.js';
 import { compressObservation } from './compress.js';
+import { extractEntities, type GraphContext } from './graph.js';
 import { nanoid } from 'nanoid';
 
 export interface ObserveContext {
@@ -57,7 +58,14 @@ export async function captureObservation(
     embedding,
   });
 
-  // 6. Update session observation count
+  // 6. Extract knowledge graph entities (fire-and-forget to avoid blocking)
+  const graphText = `${observation.title}. ${observation.content} Files: ${observation.files.join(', ')} Concepts: ${observation.concepts.join(', ')}`;
+  const graphCtx: GraphContext = { cosmos: ctx.cosmos, openai: ctx.openai, blobStorage: ctx.blobStorage };
+  extractEntities(raw.tenantId, graphText, observation.id, graphCtx).catch(() => {
+    // Graph extraction is best-effort; failures don't block the pipeline
+  });
+
+  // 7. Update session observation count
   const session = await ctx.cosmos.read<any>(
     'sessions',
     raw.sessionId,
