@@ -123,6 +123,7 @@ export class FabricLakehouseAdapter {
       timestamp: obs.timestamp as string,
       type: obs.type as string,
       title: (obs.title as string) ?? null,
+      content: (obs.content as string) ?? (obs.narrative as string) ?? null,
       narrative: (obs.narrative as string) ?? null,
       importance: obs.importance as number,
       confidence: (obs.confidence as number) ?? null,

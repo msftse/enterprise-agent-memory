@@ -33,7 +33,7 @@ export async function captureObservation(
   const compressed = await compressObservation(raw, ctx.openai);
 
   // 3. Generate embedding
-  const embeddingText = `${compressed.title}. ${compressed.narrative} ${compressed.concepts.join(', ')}`;
+  const embeddingText = `${compressed.title}. ${compressed.content} ${compressed.concepts.join(', ')}`;
   const embedding = await ctx.openai.embed(embeddingText);
 
   const observation: CompressedObservation = { ...compressed, embedding };
@@ -48,7 +48,7 @@ export async function captureObservation(
     docType: 'observation',
     sessionId: observation.sessionId,
     title: observation.title,
-    content: observation.narrative,
+    content: observation.content,
     concepts: observation.concepts,
     files: observation.files,
     type: observation.type,

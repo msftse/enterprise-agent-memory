@@ -54,6 +54,7 @@ export async function compressObservation(
     parsed = {
       title: `${raw.hookType}: ${raw.toolName ?? 'unknown'}`,
       facts: [],
+      content: result.slice(0, 500),
       narrative: result.slice(0, 500),
       concepts: [],
       files: [],
@@ -71,6 +72,7 @@ export async function compressObservation(
     title: parsed.title ?? '',
     subtitle: parsed.subtitle,
     facts: parsed.facts ?? [],
+    content: parsed.narrative ?? '',
     narrative: parsed.narrative ?? '',
     concepts: parsed.concepts ?? [],
     files: parsed.files ?? [],
