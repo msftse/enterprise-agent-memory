@@ -34,11 +34,13 @@ export function registerSessionRoutes(app: FastifyInstance, cosmos: CosmosAdapte
   // GET /api/v1/sessions — list sessions
   app.get<{ Querystring: ListParams }>('/api/v1/sessions', async (request, reply) => {
     const { offset = 0, limit = 50, project, status } = request.query;
+    const parsedOffset = Number(offset);
+    const parsedLimit = Number(limit);
     const filters: Record<string, unknown>[] = [];
     const parameters: { name: string; value: string | number }[] = [
       { name: '@tenantId', value: request.tenantId },
-      { name: '@offset', value: offset },
-      { name: '@limit', value: limit },
+      { name: '@offset', value: parsedOffset },
+      { name: '@limit', value: parsedLimit },
     ];
 
     if (project) {

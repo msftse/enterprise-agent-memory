@@ -74,7 +74,9 @@ export function registerObservationRoutes(
   app.get<{ Params: { sessionId: string }; Querystring: { offset?: number; limit?: number } }>(
     '/api/v1/sessions/:sessionId/observations',
     async (request, reply) => {
-      const { offset = 0, limit = 50 } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50 } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const items = await cosmos.query<CompressedObservation>('observations', {
         query:
           'SELECT * FROM c WHERE c.tenantId = @tenantId AND c.sessionId = @sessionId ORDER BY c.timestamp DESC OFFSET @offset LIMIT @limit',

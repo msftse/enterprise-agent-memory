@@ -32,7 +32,9 @@ export function registerGraphRoutes(
   app.get<{ Querystring: { offset?: number; limit?: number; type?: string } }>(
     '/api/v1/graph/nodes',
     async (request, reply) => {
-      const { offset = 0, limit = 50, type } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50, type } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const tenantId = request.tenantId;
 
       const filters: string[] = [];
@@ -96,7 +98,9 @@ export function registerGraphRoutes(
   app.get<{ Querystring: { offset?: number; limit?: number; nodeId?: string } }>(
     '/api/v1/graph/edges',
     async (request, reply) => {
-      const { offset = 0, limit = 50, nodeId } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50, nodeId } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const tenantId = request.tenantId;
 
       const filters: string[] = [];
