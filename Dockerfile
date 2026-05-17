@@ -16,6 +16,7 @@ RUN addgroup --system --gid 1001 appgroup && \
 COPY --from=builder /app/package*.json ./
 RUN npm ci --production --ignore-scripts
 COPY --from=builder /app/dist ./dist/
+COPY --from=builder /app/src/viewer ./viewer/
 USER appuser
 EXPOSE 8080
 CMD ["node", "dist/index.js"]

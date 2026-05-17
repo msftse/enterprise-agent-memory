@@ -14,6 +14,7 @@ import { registerMemoryRoutes } from './routes/memories.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerGraphRoutes } from './routes/graph.routes.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
+import { registerViewerRoutes } from './routes/viewer.routes.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -54,10 +55,14 @@ async function main(): Promise<void> {
   // Auth middleware on all /api/v1 routes except health
   app.addHook('onRequest', async (request, reply) => {
     if (request.url === '/api/v1/health') return;
+    if (request.url === '/viewer' || request.url === '/') return;
     await authMiddleware(request, reply);
     if (reply.sent) return;
     await tenantMiddleware(request, reply);
   });
+
+  // Viewer (no auth)
+  registerViewerRoutes(app);
 
   // Register routes
   registerSessionRoutes(app, cosmos);
