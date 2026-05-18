@@ -88,6 +88,8 @@ export interface CompressedObservation {
   title: string;
   subtitle?: string;
   facts: string[];
+  content: string;
+  /** @deprecated Use `content` instead. Alias kept for backward compatibility. */
   narrative: string;
   concepts: string[];
   files: string[];

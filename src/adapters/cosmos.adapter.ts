@@ -19,11 +19,20 @@ export class CosmosAdapter {
 
   constructor() {
     const config = getConfig();
-    const credential = new DefaultAzureCredential();
-    this.client = new CosmosClient({
-      endpoint: config.COSMOS_ENDPOINT,
-      aadCredentials: credential,
-    });
+    // Use account key if available (local dev), otherwise DefaultAzureCredential (Managed Identity)
+    const cosmosKey = process.env.COSMOS_KEY;
+    if (cosmosKey) {
+      this.client = new CosmosClient({
+        endpoint: config.COSMOS_ENDPOINT,
+        key: cosmosKey,
+      });
+    } else {
+      const credential = new DefaultAzureCredential();
+      this.client = new CosmosClient({
+        endpoint: config.COSMOS_ENDPOINT,
+        aadCredentials: credential,
+      });
+    }
   }
 
   async ensureInitialized(): Promise<void> {
@@ -129,8 +138,8 @@ export class CosmosAdapter {
   ): Promise<{ items: T[]; total: number }> {
     await this.ensureInitialized();
     const container = this.getContainer(containerName);
-    const limit = options?.limit ?? 50;
-    const offset = options?.offset ?? 0;
+    const limit = Number(options?.limit ?? 50);
+    const offset = Number(options?.offset ?? 0);
     const orderBy = options?.orderBy ?? '_ts';
     const orderDir = options?.orderDir ?? 'DESC';
 

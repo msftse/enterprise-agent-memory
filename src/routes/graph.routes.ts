@@ -3,8 +3,8 @@ import type { CosmosAdapter } from '../adapters/cosmos.adapter.js';
 import type { AzureOpenAIAdapter } from '../adapters/azure-openai.adapter.js';
 import type { BlobStorageAdapter } from '../adapters/blob-storage.adapter.js';
 import type { TraverseGraphRequest } from '../types/api.js';
-import type { GraphNode, GraphEdge } from '../types/models.js';
-import { createGraphNode, createGraphEdge, traverseGraph } from '../engine/graph.js';
+import type { GraphNode, GraphEdge, CompressedObservation } from '../types/models.js';
+import { createGraphNode, createGraphEdge, traverseGraph, extractEntities } from '../engine/graph.js';
 import { nanoid } from 'nanoid';
 
 export function registerGraphRoutes(
@@ -32,7 +32,9 @@ export function registerGraphRoutes(
   app.get<{ Querystring: { offset?: number; limit?: number; type?: string } }>(
     '/api/v1/graph/nodes',
     async (request, reply) => {
-      const { offset = 0, limit = 50, type } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50, type } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const tenantId = request.tenantId;
 
       const filters: string[] = [];
@@ -96,7 +98,9 @@ export function registerGraphRoutes(
   app.get<{ Querystring: { offset?: number; limit?: number; nodeId?: string } }>(
     '/api/v1/graph/edges',
     async (request, reply) => {
-      const { offset = 0, limit = 50, nodeId } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50, nodeId } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const tenantId = request.tenantId;
 
       const filters: string[] = [];
@@ -135,4 +139,66 @@ export function registerGraphRoutes(
       meta: { requestId: nanoid(), timestamp: new Date().toISOString(), tenantId },
     });
   });
+
+  // POST /api/v1/graph/extract — extract entities from an observation
+  app.post<{ Body: { observationId: string } }>(
+    '/api/v1/graph/extract',
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      const { observationId } = request.body;
+
+      const obs = await cosmos.read<CompressedObservation>(
+        'observations',
+        observationId,
+        tenantId,
+      );
+      if (!obs) {
+        return reply.code(404).send({
+          error: { code: 'NOT_FOUND', message: 'Observation not found', status: 404 },
+        });
+      }
+
+      const text = `${obs.title}. ${obs.content ?? obs.narrative} Files: ${obs.files.join(', ')} Concepts: ${obs.concepts.join(', ')}`;
+      const result = await extractEntities(tenantId, text, observationId, ctx);
+      reply.code(201).send({
+        data: { nodes: result.nodes, edges: result.edges },
+        meta: { requestId: nanoid(), timestamp: new Date().toISOString(), tenantId },
+      });
+    },
+  );
+
+  // POST /api/v1/graph/extract-batch — extract entities from all observations in a session
+  app.post<{ Body: { sessionId: string } }>(
+    '/api/v1/graph/extract-batch',
+    async (request, reply) => {
+      const tenantId = request.tenantId;
+      const { sessionId } = request.body;
+
+      const observations = await cosmos.query<CompressedObservation>('observations', {
+        query: 'SELECT * FROM c WHERE c.tenantId = @tenantId AND c.sessionId = @sessionId',
+        parameters: [
+          { name: '@tenantId', value: tenantId },
+          { name: '@sessionId', value: sessionId },
+        ],
+      });
+
+      let totalNodes = 0;
+      let totalEdges = 0;
+      for (const obs of observations) {
+        const text = `${obs.title}. ${obs.content ?? obs.narrative} Files: ${obs.files.join(', ')} Concepts: ${obs.concepts.join(', ')}`;
+        const result = await extractEntities(tenantId, text, obs.id, ctx);
+        totalNodes += result.nodes.length;
+        totalEdges += result.edges.length;
+      }
+
+      reply.code(201).send({
+        data: {
+          observationsProcessed: observations.length,
+          nodesCreated: totalNodes,
+          edgesCreated: totalEdges,
+        },
+        meta: { requestId: nanoid(), timestamp: new Date().toISOString(), tenantId },
+      });
+    },
+  );
 }

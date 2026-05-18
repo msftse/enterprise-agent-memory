@@ -31,7 +31,9 @@ export function registerMemoryRoutes(
 
   // GET /api/v1/memories — list memories (paginated)
   app.get<{ Querystring: ListParams }>('/api/v1/memories', async (request, reply) => {
-    const { offset = 0, limit = 50, project, status } = request.query;
+    const { offset: rawOffset = 0, limit: rawLimit = 50, project, status } = request.query;
+    const offset = Number(rawOffset);
+    const limit = Number(rawLimit);
     const tenantId = request.tenantId;
 
     const filters: string[] = [];

@@ -8,6 +8,14 @@ import type { RawObservation, CompressedObservation } from '../types/models.js';
 import { captureObservation } from '../engine/observe.js';
 import { nanoid } from 'nanoid';
 
+/** Backfill `content` from `narrative` for documents written before the rename. */
+function normalizeObservation(obs: CompressedObservation): CompressedObservation {
+  if (!obs.content && obs.narrative) {
+    obs.content = obs.narrative;
+  }
+  return obs;
+}
+
 export function registerObservationRoutes(
   app: FastifyInstance,
   cosmos: CosmosAdapter,
@@ -57,7 +65,7 @@ export function registerObservationRoutes(
       });
     }
     reply.send({
-      data: obs,
+      data: normalizeObservation(obs),
       meta: { requestId: nanoid(), timestamp: new Date().toISOString(), tenantId: request.tenantId },
     });
   });
@@ -66,7 +74,9 @@ export function registerObservationRoutes(
   app.get<{ Params: { sessionId: string }; Querystring: { offset?: number; limit?: number } }>(
     '/api/v1/sessions/:sessionId/observations',
     async (request, reply) => {
-      const { offset = 0, limit = 50 } = request.query;
+      const { offset: rawOffset = 0, limit: rawLimit = 50 } = request.query;
+      const offset = Number(rawOffset);
+      const limit = Number(rawLimit);
       const items = await cosmos.query<CompressedObservation>('observations', {
         query:
           'SELECT * FROM c WHERE c.tenantId = @tenantId AND c.sessionId = @sessionId ORDER BY c.timestamp DESC OFFSET @offset LIMIT @limit',
@@ -78,7 +88,7 @@ export function registerObservationRoutes(
         ],
       });
       reply.send({
-        data: { items, total: items.length, offset, limit, hasMore: items.length === limit },
+        data: { items: items.map(normalizeObservation), total: items.length, offset, limit, hasMore: items.length === limit },
         meta: {
           requestId: nanoid(),
           timestamp: new Date().toISOString(),

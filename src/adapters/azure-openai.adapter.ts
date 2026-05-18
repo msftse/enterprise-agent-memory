@@ -115,14 +115,19 @@ export class AzureOpenAIAdapter {
     const config = getConfig();
     const client = this.getClient();
 
-    const systemPrompt = `You are a knowledge graph extraction engine. Given a text, extract entities (nodes) and relationships (edges).
+    const systemPrompt = `You are a knowledge graph extraction engine for a coding agent's memory system.
+Given a text about coding activity, extract entities (nodes) and relationships (edges).
 Return a JSON object with this exact structure:
 {
   "nodes": [{ "type": "<entity_type>", "name": "<entity_name>" }],
   "edges": [{ "type": "<relationship_type>", "source": "<source_name>", "target": "<target_name>" }]
 }
-Entity types: person, project, technology, concept, file, service, organization, tool.
-Relationship types: uses, depends_on, contributes_to, related_to, part_of, created_by, owns, works_with.
+Entity types: file, function, concept, error, decision, pattern, library, person, project, preference, location, organization, event.
+Relationship types: uses, imports, modifies, causes, fixes, depends_on, related_to, works_at, prefers, blocked_by, caused_by, optimizes_for, rejected, avoids, located_in, succeeded_by.
+- Use the exact names above. If uncertain about type, use "concept" for nodes and "related_to" for edges.
+- For files, include the full path as the name.
+- For functions, include just the function name.
+- Extract only clearly mentioned entities — do not infer speculative ones.
 Return ONLY valid JSON with no markdown or extra text.`;
 
     const response = await client.chat.completions.create({

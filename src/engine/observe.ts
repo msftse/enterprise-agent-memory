@@ -8,6 +8,7 @@ import type {
   AuditEntry,
 } from '../types/models.js';
 import { compressObservation } from './compress.js';
+import { extractEntities, type GraphContext } from './graph.js';
 import { nanoid } from 'nanoid';
 
 export interface ObserveContext {
@@ -33,7 +34,7 @@ export async function captureObservation(
   const compressed = await compressObservation(raw, ctx.openai);
 
   // 3. Generate embedding
-  const embeddingText = `${compressed.title}. ${compressed.narrative} ${compressed.concepts.join(', ')}`;
+  const embeddingText = `${compressed.title}. ${compressed.content} ${compressed.concepts.join(', ')}`;
   const embedding = await ctx.openai.embed(embeddingText);
 
   const observation: CompressedObservation = { ...compressed, embedding };
@@ -48,7 +49,7 @@ export async function captureObservation(
     docType: 'observation',
     sessionId: observation.sessionId,
     title: observation.title,
-    content: observation.narrative,
+    content: observation.content,
     concepts: observation.concepts,
     files: observation.files,
     type: observation.type,
@@ -57,7 +58,14 @@ export async function captureObservation(
     embedding,
   });
 
-  // 6. Update session observation count
+  // 6. Extract knowledge graph entities (fire-and-forget to avoid blocking)
+  const graphText = `${observation.title}. ${observation.content} Files: ${observation.files.join(', ')} Concepts: ${observation.concepts.join(', ')}`;
+  const graphCtx: GraphContext = { cosmos: ctx.cosmos, openai: ctx.openai, blobStorage: ctx.blobStorage };
+  extractEntities(raw.tenantId, graphText, observation.id, graphCtx).catch(() => {
+    // Graph extraction is best-effort; failures don't block the pipeline
+  });
+
+  // 7. Update session observation count
   const session = await ctx.cosmos.read<any>(
     'sessions',
     raw.sessionId,

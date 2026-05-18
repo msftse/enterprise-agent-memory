@@ -47,6 +47,7 @@ describe('compressObservation', () => {
     expect(result.concepts).toEqual(['typescript', 'source-code']);
     expect(result.files).toEqual(['/src/main.ts']);
     expect(result.narrative).toContain('main TypeScript source file');
+    expect(result.content).toContain('main TypeScript source file');
     expect(mockOpenAI.compress).toHaveBeenCalledOnce();
   });
 
@@ -61,6 +62,7 @@ describe('compressObservation', () => {
     expect(result.title).toContain('file_read');
     expect(result.importance).toBe(5);
     expect(result.narrative).toBe('This is not valid JSON at all');
+    expect(result.content).toBe('This is not valid JSON at all');
     expect(result.facts).toEqual([]);
   });
 
@@ -100,7 +102,7 @@ describe('compressObservation', () => {
     expect(result.title).toBe('');
     expect(result.facts).toEqual([]);
     expect(result.narrative).toBe('');
-    expect(result.concepts).toEqual([]);
+    expect(result.content).toBe('');
     expect(result.files).toEqual([]);
     expect(result.importance).toBe(5);
     expect(result.type).toBe('other');
