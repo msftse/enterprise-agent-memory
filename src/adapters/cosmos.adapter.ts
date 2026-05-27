@@ -113,6 +113,38 @@ export class CosmosAdapter {
     await container.item(id, tenantId).delete();
   }
 
+  // Phase 2: fetch the savings-relevant fields for all memories in a tenant.
+  // We aggregate in TypeScript rather than complex Cosmos SQL: simpler,
+  // easier to test, and at pilot scale the data set fits comfortably in memory.
+  async listMemoriesForSavings(
+    tenantId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      title: string;
+      createdAt: string;
+      sourceTokens?: number;
+      compressedTokens?: number;
+      recallCount?: number;
+      actor?: string;
+    }>
+  > {
+    await this.ensureInitialized();
+    const { resources } = await this.getContainer('memories').items.query<{
+      id: string;
+      title: string;
+      createdAt: string;
+      sourceTokens?: number;
+      compressedTokens?: number;
+      recallCount?: number;
+      actor?: string;
+    }>({
+      query: 'SELECT c.id, c.title, c.createdAt, c.sourceTokens, c.compressedTokens, c.recallCount, c.actor FROM c WHERE c.tenantId = @t',
+      parameters: [{ name: '@t', value: tenantId }],
+    }).fetchAll();
+    return resources;
+  }
+
   // Phase 2: increment Memory.recallCount atomically via JSON Patch.
   // Falls back to `set` for legacy memories that don't have the field yet
   // (incr op requires the path to already exist as a number).

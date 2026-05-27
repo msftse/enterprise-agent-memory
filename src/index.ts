@@ -5,6 +5,7 @@ import { apiKeyMiddleware } from './middleware/api-key.middleware.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { tenantMiddleware } from './middleware/tenant.middleware.js';
 import { registerRateLimit } from './middleware/rate-limit.middleware.js';
+import { runtimeStats } from './instrumentation/runtime-stats.js';
 import { CosmosAdapter } from './adapters/cosmos.adapter.js';
 import { AISearchAdapter } from './adapters/ai-search.adapter.js';
 import { AzureOpenAIAdapter } from './adapters/azure-openai.adapter.js';
@@ -16,6 +17,8 @@ import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerGraphRoutes } from './routes/graph.routes.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
 import { registerViewerRoutes } from './routes/viewer.routes.js';
+import { registerSavingsRoutes } from './routes/savings.routes.js';
+import { registerScalabilityRoutes } from './routes/scalability.routes.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -27,6 +30,11 @@ async function main(): Promise<void> {
   // Plugins
   await app.register(cors, { origin: true });
   await registerRateLimit(app);
+
+  // Phase 2: capture request latencies for /api/v1/scalability/metrics
+  app.addHook('onResponse', async (_request, reply) => {
+    runtimeStats.recordRequest(reply.elapsedTime);
+  });
 
   // Initialize Azure adapters
   const cosmos = new CosmosAdapter();
@@ -65,7 +73,7 @@ async function main(): Promise<void> {
   });
 
   // Viewer (no auth)
-  registerViewerRoutes(app);
+  await registerViewerRoutes(app);
 
   // Register routes
   registerSessionRoutes(app, cosmos);
@@ -74,6 +82,8 @@ async function main(): Promise<void> {
   registerSearchRoutes(app, openai, search, cosmos);
   registerGraphRoutes(app, cosmos, openai, blobStorage);
   registerAdminRoutes(app, cosmos, search, blobStorage);
+  registerSavingsRoutes(app, cosmos);
+  registerScalabilityRoutes(app, runtimeStats);
 
   // Start
   const address = await app.listen({ port: config.PORT, host: '0.0.0.0' });

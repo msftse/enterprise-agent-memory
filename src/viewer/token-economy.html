@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Economy — Enterprise Agent Memory</title>
+  <link rel="stylesheet" href="/viewer/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="eam-nav">
+    <strong>EAM dashboard</strong>
+    <a href="/viewer/savings.html">Savings</a>
+    <a href="/viewer/token-economy.html" class="active">Token Economy</a>
+    <a href="/viewer/scalability.html">Scalability</a>
+  </header>
+
+  <main>
+    <section class="eam-card">
+      <div class="eam-hero" id="hero-ratio">—</div>
+      <div class="eam-hero-sub" id="hero-sub">Loading…</div>
+    </section>
+
+    <section class="eam-card">
+      <h3>Compression ratio distribution</h3>
+      <canvas id="chart-dist" height="80"></canvas>
+    </section>
+
+    <section class="eam-card">
+      <h3>Token flow</h3>
+      <table class="eam-table" id="tbl-flow"></table>
+    </section>
+  </main>
+
+  <script type="module">
+    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtRatio, mkHistogram, table } from '/viewer/app.js';
+    requireKey();
+
+    async function refresh() {
+      const s = await fetchEam('/api/v1/savings/summary');
+      document.getElementById('hero-ratio').textContent = fmtRatio(s.compressionRatio);
+      document.getElementById('hero-sub').textContent =
+        `${fmtNumber(s.totalSourceTokens)} raw tokens absorbed → ` +
+        `${fmtNumber(s.totalCompressedTokens)} memory tokens stored`;
+
+      const d = await fetchEam('/api/v1/savings/compression-distribution');
+      if (d.buckets.length === 0) {
+        document.getElementById('chart-dist').replaceWith(
+          Object.assign(document.createElement('p'), { textContent: 'No data yet.' })
+        );
+      } else {
+        mkHistogram(document.getElementById('chart-dist'), d.buckets);
+      }
+
+      table(
+        document.getElementById('tbl-flow'),
+        ['Direction', 'Tokens'],
+        [
+          ['In  (raw observations absorbed)', fmtNumber(s.totalSourceTokens)],
+          ['Out (compressed memory stored)', fmtNumber(s.totalCompressedTokens)],
+          ['Saved (delivered via recall)',    fmtNumber(s.totalSavedTokens)],
+        ],
+      );
+    }
+
+    pollEvery(30000, refresh);
+  </script>
+</body>
+</html>

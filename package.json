@@ -20,7 +20,15 @@
     "type": "git",
     "url": "https://github.com/msftse/enterprise-agent-memory.git"
   },
-  "keywords": ["agent-memory", "azure", "cosmos-db", "ai-search", "multi-tenant", "enterprise", "llm"],
+  "keywords": [
+    "agent-memory",
+    "azure",
+    "cosmos-db",
+    "ai-search",
+    "multi-tenant",
+    "enterprise",
+    "llm"
+  ],
   "author": "Roey Zalta",
   "dependencies": {
     "@azure/cosmos": "^4.2.0",
@@ -32,6 +40,7 @@
     "@azure/storage-file-datalake": "^12.25.0",
     "@fastify/cors": "^10.0.0",
     "@fastify/rate-limit": "^10.2.0",
+    "@fastify/static": "^7.0.4",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/sdk-node": "^0.57.0",
     "fastify": "^5.2.0",
