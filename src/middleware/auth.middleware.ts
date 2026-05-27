@@ -33,11 +33,20 @@ export async function authMiddleware(
 ): Promise<void> {
   const config = getConfig();
 
-  // Skip auth in dev mode if AUTH_DISABLED
+  // Skip auth in dev mode / pilot mode if AUTH_DISABLED.
+  // Honor the x-tenant-id header so multi-tenant routing works when the
+  // API-key middleware in front is providing the only real gate.
   if (config.AUTH_DISABLED) {
+    const rawTenant = request.headers['x-tenant-id'];
+    const headerTenant = Array.isArray(rawTenant) ? rawTenant[0] : rawTenant;
+    const tenantId = (typeof headerTenant === 'string' && headerTenant) ? headerTenant : 'dev-tenant';
+    // Use the API-key prefix as a soft sub identifier when available.
+    const rawKey = request.headers['x-api-key'];
+    const keyStr = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+    const sub = typeof keyStr === 'string' && keyStr ? keyStr.split('-', 2)[0] : 'dev-user';
     request.user = {
-      sub: 'dev-user',
-      tenantId: 'dev-tenant',
+      sub,
+      tenantId,
       roles: ['admin'],
       name: 'Development User',
     };
