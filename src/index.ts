@@ -61,10 +61,13 @@ async function main(): Promise<void> {
     app.log.warn('⚠️  Azure OpenAI not configured — LLM features disabled');
   }
 
-  // Auth middleware on all /api/v1 routes except health
+  // Auth middleware on all /api/v1 routes except health.
+  // Static viewer assets at /viewer/* are public (HTML/JS/CSS); their fetches
+  // include the API key from localStorage.
   app.addHook('onRequest', async (request, reply) => {
+    if (request.url === '/') return;
     if (request.url === '/api/v1/health') return;
-    if (request.url === '/viewer' || request.url === '/') return;
+    if (request.url === '/viewer' || request.url.startsWith('/viewer/')) return;
     await apiKeyMiddleware(request, reply);
     if (reply.sent) return;
     await authMiddleware(request, reply);
