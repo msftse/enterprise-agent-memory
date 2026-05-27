@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { loadConfig } from './config/azure.config.js';
+import { apiKeyMiddleware } from './middleware/api-key.middleware.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { tenantMiddleware } from './middleware/tenant.middleware.js';
 import { registerRateLimit } from './middleware/rate-limit.middleware.js';
@@ -56,6 +57,8 @@ async function main(): Promise<void> {
   app.addHook('onRequest', async (request, reply) => {
     if (request.url === '/api/v1/health') return;
     if (request.url === '/viewer' || request.url === '/') return;
+    await apiKeyMiddleware(request, reply);
+    if (reply.sent) return;
     await authMiddleware(request, reply);
     if (reply.sent) return;
     await tenantMiddleware(request, reply);

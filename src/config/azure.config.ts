@@ -53,6 +53,17 @@ const envSchema = z.object({
   AUTH_AUDIENCE: z.string().optional(),
   AUTH_ISSUER: z.string().optional(),
   AUTH_DISABLED: z.coerce.boolean().default(false),
+
+  // API-key gate (pilot only — see specs/2026-05-27-...-design.md Amendment A)
+  EAM_API_KEYS: z
+    .string()
+    .default('')
+    .transform((s) =>
+      s
+        .split(',')
+        .map((k) => k.trim())
+        .filter(Boolean),
+    ),
 });
 
 export type AzureConfig = z.infer<typeof envSchema>;
