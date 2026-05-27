@@ -6,6 +6,9 @@ param baseName string
 @description('Azure region')
 param location string = resourceGroup().location
 
+@description('Azure region for Azure AI Search (override if eastus2 is capacity-constrained)')
+param aiSearchLocation string = location
+
 @description('Environment (dev, staging, prod)')
 @allowed(['dev', 'staging', 'prod'])
 param environment string = 'dev'
@@ -32,7 +35,7 @@ module aiSearch 'modules/ai-search.bicep' = {
   name: 'ai-search-${baseName}'
   params: {
     baseName: baseName
-    location: location
+    location: aiSearchLocation
     environment: environment
   }
 }
