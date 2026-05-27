@@ -5,6 +5,7 @@ const mockItemCreate = vi.fn();
 const mockItemRead = vi.fn();
 const mockItemReplace = vi.fn();
 const mockItemDelete = vi.fn();
+const mockItemPatch = vi.fn();
 const mockQueryFetchAll = vi.fn();
 const mockGetDatabaseAccount = vi.fn();
 
@@ -12,6 +13,7 @@ const mockItem = vi.fn(() => ({
   read: mockItemRead,
   replace: mockItemReplace,
   delete: mockItemDelete,
+  patch: mockItemPatch,
 }));
 
 const mockContainerQuery = vi.fn(() => ({ fetchAll: mockQueryFetchAll }));
@@ -62,7 +64,7 @@ describe('CosmosAdapter', () => {
     // Clear call history but keep implementations intact
     [
       mockItemCreate, mockItemRead, mockItemReplace,
-      mockItemDelete, mockQueryFetchAll, mockGetDatabaseAccount,
+      mockItemDelete, mockItemPatch, mockQueryFetchAll, mockGetDatabaseAccount,
       mockItem, mockContainerQuery,
     ].forEach((fn) => fn.mockClear());
 
@@ -232,6 +234,29 @@ describe('CosmosAdapter', () => {
       const result = await adapter.healthCheck();
 
       expect(result.status).toBe('unhealthy');
+    });
+  });
+
+  describe('incrementMemoryRecallCount', () => {
+    it('issues a JSON-Patch incr op on the memory item', async () => {
+      mockItemPatch.mockResolvedValueOnce({});
+      await adapter.incrementMemoryRecallCount('mem-1', 'pilot');
+      expect(mockItem).toHaveBeenCalledWith('mem-1', 'pilot');
+      expect(mockItemPatch).toHaveBeenCalledWith([
+        { op: 'incr', path: '/recallCount', value: 1 },
+      ]);
+    });
+
+    it('falls back to set when incr fails (legacy memory without recallCount)', async () => {
+      const err: any = new Error('AbsolutePath cannot be used to update the document');
+      err.code = 400;
+      mockItemPatch.mockRejectedValueOnce(err);
+      mockItemPatch.mockResolvedValueOnce({});
+      await adapter.incrementMemoryRecallCount('legacy-mem', 'pilot');
+      expect(mockItemPatch).toHaveBeenCalledTimes(2);
+      expect(mockItemPatch).toHaveBeenLastCalledWith([
+        { op: 'set', path: '/recallCount', value: 1 },
+      ]);
     });
   });
 });

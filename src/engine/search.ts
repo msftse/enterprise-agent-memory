@@ -1,10 +1,12 @@
 import type { AzureOpenAIAdapter } from '../adapters/azure-openai.adapter.js';
 import type { AISearchAdapter } from '../adapters/ai-search.adapter.js';
+import type { CosmosAdapter } from '../adapters/cosmos.adapter.js';
 import type { SearchRequest, SearchResponse } from '../types/api.js';
 
 export interface SearchContext {
   openai: AzureOpenAIAdapter;
   search: AISearchAdapter;
+  cosmos: CosmosAdapter;
 }
 
 export async function hybridSearch(
@@ -33,6 +35,15 @@ export async function hybridSearch(
     limit: request.limit ?? 10,
     filters: request.filters,
   });
+
+  // Phase 2: fire-and-forget recall counter on each memory hit.
+  // We don't await — search latency must not depend on bookkeeping.
+  const memoryHits = results.filter((r) => r.docType === 'memory');
+  if (memoryHits.length > 0) {
+    void Promise.allSettled(
+      memoryHits.map((h) => ctx.cosmos.incrementMemoryRecallCount(h.id, tenantId)),
+    );
+  }
 
   return {
     results: results.map((r) => ({

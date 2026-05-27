@@ -55,6 +55,8 @@ function createMockCosmos() {
     purgeContainer: vi.fn().mockResolvedValue(0),
     healthCheck: vi.fn().mockResolvedValue({ status: 'healthy', latencyMs: 5 }),
     ensureInitialized: vi.fn().mockResolvedValue(undefined),
+    // Phase 2: search engine now calls this fire-and-forget per memory hit.
+    incrementMemoryRecallCount: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -72,6 +74,18 @@ function createMockOpenAI() {
       type: 'other',
     })),
     summarize: vi.fn().mockResolvedValue('summary'),
+    // Phase 2: createMemory now compresses input first via compressWithUsage.
+    compressWithUsage: vi.fn().mockResolvedValue({
+      content: JSON.stringify({
+        title: 'Extracted memory',
+        content: 'Extracted content',
+        concepts: ['extracted'],
+        files: [],
+        type: 'fact',
+      }),
+      promptTokens: 250,
+      completionTokens: 40,
+    }),
     embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
     extractGraphEntities: vi.fn().mockResolvedValue({ nodes: [], edges: [] }),
     isAvailable: true,
@@ -142,7 +156,7 @@ async function buildTestApp(adapters: MockAdapters) {
     adapters.search as any,
     adapters.blob as any,
   );
-  registerSearchRoutes(app, adapters.openai as any, adapters.search as any);
+  registerSearchRoutes(app, adapters.openai as any, adapters.search as any, adapters.cosmos as any);
   registerAdminRoutes(app, adapters.cosmos as any, adapters.search as any, adapters.blob as any);
 
   await app.ready();

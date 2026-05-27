@@ -12,6 +12,13 @@ function createMockContext(): MemoryContext {
     } as any,
     openai: {
       embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+      // Phase 2: createMemory now calls compressWithUsage to extract structure + tokens.
+      // Default mock returns minimal valid JSON; promptTokens=100, completionTokens=20.
+      compressWithUsage: vi.fn().mockResolvedValue({
+        content: JSON.stringify({ title: 'Mock', content: 'Mock', concepts: [], files: [], type: 'fact' }),
+        promptTokens: 100,
+        completionTokens: 20,
+      }),
     } as any,
     search: {
       indexDocument: vi.fn().mockResolvedValue(undefined),

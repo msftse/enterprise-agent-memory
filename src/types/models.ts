@@ -126,6 +126,11 @@ export interface Memory {
   imageRef?: string;
   imageData?: string;
   embedding?: number[];
+  // Phase 2: token-savings instrumentation
+  sourceTokens?: number;       // prompt_tokens of the compression call
+  compressedTokens?: number;   // completion_tokens of the compression call
+  recallCount?: number;        // incremented on each search hit
+  actor?: string;              // 'roey' | 'shiron' | undefined — from x-api-key prefix
 }
 
 export interface MemoryRelation {

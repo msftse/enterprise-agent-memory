@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   registerSessionRoutes(app, cosmos);
   registerObservationRoutes(app, cosmos, openai, search, blobStorage);
   registerMemoryRoutes(app, cosmos, openai, search, blobStorage);
-  registerSearchRoutes(app, openai, search);
+  registerSearchRoutes(app, openai, search, cosmos);
   registerGraphRoutes(app, cosmos, openai, blobStorage);
   registerAdminRoutes(app, cosmos, search, blobStorage);
 

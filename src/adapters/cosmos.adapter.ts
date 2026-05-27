@@ -113,6 +113,26 @@ export class CosmosAdapter {
     await container.item(id, tenantId).delete();
   }
 
+  // Phase 2: increment Memory.recallCount atomically via JSON Patch.
+  // Falls back to `set` for legacy memories that don't have the field yet
+  // (incr op requires the path to already exist as a number).
+  async incrementMemoryRecallCount(memoryId: string, tenantId: string): Promise<void> {
+    await this.ensureInitialized();
+    const item = this.getContainer('memories').item(memoryId, tenantId);
+    try {
+      await item.patch([{ op: 'incr', path: '/recallCount', value: 1 }]);
+    } catch (err: unknown) {
+      const code = (err as { code?: number } | null)?.code;
+      if (code === 400 || code === 404) {
+        await item.patch([{ op: 'set', path: '/recallCount', value: 1 }]).catch(() => {
+          // Swallow — fire-and-forget callers don't want to error here.
+        });
+        return;
+      }
+      throw err;
+    }
+  }
+
   async query<T>(
     containerName: string,
     querySpec: {

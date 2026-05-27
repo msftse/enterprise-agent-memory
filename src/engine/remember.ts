@@ -4,6 +4,7 @@ import type { AISearchAdapter } from '../adapters/ai-search.adapter.js';
 import type { BlobStorageAdapter } from '../adapters/blob-storage.adapter.js';
 import type { Memory, AuditEntry } from '../types/models.js';
 import { nanoid } from 'nanoid';
+import { compressMemoryInput } from './compress-memory.js';
 
 export interface MemoryContext {
   cosmos: CosmosAdapter;
@@ -24,9 +25,21 @@ export async function createMemory(
     sourceObservationIds?: string[];
   },
   ctx: MemoryContext,
+  opts: { actor?: string } = {},
 ): Promise<Memory> {
   const now = new Date().toISOString();
-  const embeddingText = `${input.title}. ${input.content} ${(input.concepts ?? []).join(', ')}`;
+
+  // Phase 2: run LLM compression on the raw content to extract structure
+  // AND capture prompt/completion token counts for savings instrumentation.
+  const extracted = await compressMemoryInput(input.content, ctx.openai);
+
+  // Prefer caller-provided fields; fall back to extracted ones.
+  const title = input.title || extracted.title;
+  const concepts = input.concepts && input.concepts.length > 0 ? input.concepts : extracted.concepts;
+  const files = input.files && input.files.length > 0 ? input.files : extracted.files;
+  const type = (input.type ?? extracted.type) as Memory['type'];
+
+  const embeddingText = `${title}. ${input.content} ${concepts.join(', ')}`;
   const embedding = await ctx.openai.embed(embeddingText);
 
   const memory: Memory = {
@@ -34,17 +47,22 @@ export async function createMemory(
     tenantId,
     createdAt: now,
     updatedAt: now,
-    type: input.type,
-    title: input.title,
+    type,
+    title,
     content: input.content,
-    concepts: input.concepts ?? [],
-    files: input.files ?? [],
+    concepts,
+    files,
     sessionIds: input.sessionIds ?? [],
     strength: 1.0,
     version: 1,
     sourceObservationIds: input.sourceObservationIds,
     isLatest: true,
     embedding,
+    // Phase 2 instrumentation
+    sourceTokens: extracted.sourceTokens,
+    compressedTokens: extracted.compressedTokens,
+    recallCount: 0,
+    actor: opts.actor,
   };
 
   await ctx.cosmos.create('memories', memory);

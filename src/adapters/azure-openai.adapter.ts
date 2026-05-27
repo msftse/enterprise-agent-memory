@@ -91,6 +91,31 @@ export class AzureOpenAIAdapter {
     return response.choices[0]?.message?.content ?? '';
   }
 
+  // Phase 2: like compress(), but returns usage tokens for savings instrumentation.
+  // Uses JSON response_format so the result is parseable upstream.
+  async compressWithUsage(
+    systemPrompt: string,
+    userContent: string,
+  ): Promise<{ content: string; promptTokens: number; completionTokens: number }> {
+    const config = getConfig();
+    const client = this.getClient();
+    const response = await client.chat.completions.create({
+      model: config.AZURE_OPENAI_DEPLOYMENT_CHAT,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      temperature: 0.2,
+      max_tokens: 1024,
+      response_format: { type: 'json_object' },
+    });
+    return {
+      content: response.choices[0]?.message?.content ?? '',
+      promptTokens: response.usage?.prompt_tokens ?? 0,
+      completionTokens: response.usage?.completion_tokens ?? 0,
+    };
+  }
+
   async summarize(systemPrompt: string, content: string): Promise<string> {
     const config = getConfig();
     const client = this.getClient();

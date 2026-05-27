@@ -4,6 +4,7 @@ import type { SearchContext } from '../../engine/search.js';
 
 function createMockSearchContext(
   searchResults: any[] = [],
+  incrementImpl: (...args: any[]) => Promise<void> = vi.fn().mockResolvedValue(undefined),
 ): SearchContext {
   return {
     openai: {
@@ -11,6 +12,9 @@ function createMockSearchContext(
     } as any,
     search: {
       hybridSearch: vi.fn().mockResolvedValue(searchResults),
+    } as any,
+    cosmos: {
+      incrementMemoryRecallCount: incrementImpl,
     } as any,
   };
 }
@@ -124,5 +128,47 @@ describe('hybridSearch', () => {
 
     expect(result.results).toEqual([]);
     expect(result.totalCount).toBe(0);
+  });
+
+  describe('Phase 2 — recall count increments', () => {
+    it('fires increment for each memory hit (fire-and-forget)', async () => {
+      const incr = vi.fn().mockResolvedValue(undefined);
+      const ctx = createMockSearchContext(
+        [
+          { id: 'mem-1', docType: 'memory',      title: 'a', content: 'a', score: 1, bm25Score: 1, vectorScore: 1 },
+          { id: 'obs-1', docType: 'observation', title: 'b', content: 'b', score: 1, bm25Score: 1, vectorScore: 1 },
+          { id: 'mem-2', docType: 'memory',      title: 'c', content: 'c', score: 1, bm25Score: 1, vectorScore: 1 },
+        ],
+        incr,
+      );
+      await hybridSearch('pilot', { query: 'x' }, ctx);
+      // Let the fire-and-forget promise run a microtask:
+      await new Promise((r) => setImmediate(r));
+      expect(incr).toHaveBeenCalledTimes(2);
+      expect(incr).toHaveBeenCalledWith('mem-1', 'pilot');
+      expect(incr).toHaveBeenCalledWith('mem-2', 'pilot');
+    });
+
+    it('does not increment for observation hits', async () => {
+      const incr = vi.fn().mockResolvedValue(undefined);
+      const ctx = createMockSearchContext(
+        [{ id: 'obs-1', docType: 'observation', title: 'o', content: 'o', score: 1, bm25Score: 1, vectorScore: 1 }],
+        incr,
+      );
+      await hybridSearch('pilot', { query: 'x' }, ctx);
+      await new Promise((r) => setImmediate(r));
+      expect(incr).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when increment fails (fire-and-forget swallows)', async () => {
+      const incr = vi.fn().mockRejectedValue(new Error('cosmos down'));
+      const ctx = createMockSearchContext(
+        [{ id: 'mem-1', docType: 'memory', title: 'a', content: 'a', score: 1, bm25Score: 1, vectorScore: 1 }],
+        incr,
+      );
+      await expect(hybridSearch('pilot', { query: 'x' }, ctx)).resolves.toBeTruthy();
+      // Drain the unhandled rejection from allSettled's internals (allSettled never throws,
+      // so this is just a sanity check that the search response itself resolved).
+    });
   });
 });

@@ -22,7 +22,11 @@ export function registerMemoryRoutes(
   // POST /api/v1/memories — create a new memory
   app.post<{ Body: CreateMemoryRequest }>('/api/v1/memories', async (request, reply) => {
     const tenantId = request.tenantId;
-    const memory = await createMemory(tenantId, request.body, ctx);
+    // Phase 2: stamp actor from the API key prefix (e.g. 'roey-abc...' → 'roey')
+    const rawKey = request.headers['x-api-key'];
+    const keyStr = Array.isArray(rawKey) ? rawKey[0] : rawKey;
+    const actor = keyStr ? keyStr.split('-', 2)[0] || undefined : undefined;
+    const memory = await createMemory(tenantId, request.body, ctx, { actor });
     reply.code(201).send({
       data: memory,
       meta: { requestId: nanoid(), timestamp: new Date().toISOString(), tenantId },
