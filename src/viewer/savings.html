@@ -47,8 +47,9 @@
   </main>
 
   <script type="module">
-    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtUsd, mkLineChart, table } from '/viewer/app.js';
+    import { fetchEam, pollEvery, requireKey, mountTenantSwitcher, fmtNumber, fmtUsd, mkLineChart, table } from '/viewer/app.js';
     requireKey();
+    mountTenantSwitcher();
 
     async function refresh() {
       const s = await fetchEam('/api/v1/savings/summary');

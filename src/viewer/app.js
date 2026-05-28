@@ -67,6 +67,80 @@ export function requireKey() {
   });
 }
 
+export function mountTenantSwitcher() {
+  const nav = document.querySelector('.eam-nav');
+  if (!nav || document.getElementById('eam-tenant-switcher')) return;
+
+  const button = document.createElement('button');
+  button.id = 'eam-tenant-switcher';
+  button.className = 'eam-tenant-switcher';
+  button.type = 'button';
+  button.append(document.createTextNode('Tenant '));
+  const tenantLabel = document.createElement('strong');
+  tenantLabel.textContent = getTenant();
+  button.appendChild(tenantLabel);
+  button.onclick = openTenantDialog;
+  nav.appendChild(button);
+}
+
+function openTenantDialog() {
+  if (document.getElementById('eam-tenant-modal')) return;
+
+  const modal = document.createElement('div');
+  modal.className = 'eam-modal';
+  modal.id = 'eam-tenant-modal';
+
+  const content = document.createElement('div');
+  content.className = 'eam-modal-content';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Change tenant';
+  const description = document.createElement('p');
+  description.textContent = 'Switch the tenant used for dashboard API calls in this browser.';
+
+  const label = document.createElement('label');
+  label.className = 'eam-tenant-label';
+  label.append(document.createTextNode('Tenant:'));
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.id = 'eam-tenant-switch-input';
+  input.autocomplete = 'off';
+  input.value = getTenant();
+  label.appendChild(input);
+
+  const actions = document.createElement('div');
+  actions.className = 'eam-modal-actions';
+  const cancelButton = document.createElement('button');
+  cancelButton.type = 'button';
+  cancelButton.id = 'eam-tenant-cancel';
+  cancelButton.textContent = 'Cancel';
+  const submitButton = document.createElement('button');
+  submitButton.type = 'button';
+  submitButton.id = 'eam-tenant-submit';
+  submitButton.textContent = 'Switch tenant';
+  actions.append(cancelButton, submitButton);
+
+  content.append(title, description, label, actions);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  const close = () => modal.remove();
+  const submit = () => {
+    const tenant = input.value.trim() || DEFAULT_TENANT;
+    setTenant(tenant);
+    location.reload();
+  };
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  cancelButton.onclick = close;
+  submitButton.onclick = submit;
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submit();
+    if (e.key === 'Escape') close();
+  });
+  input.focus();
+}
+
 const numFmt = new Intl.NumberFormat('en-US');
 const usdFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 

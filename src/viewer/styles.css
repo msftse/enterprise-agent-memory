@@ -76,6 +76,29 @@ body::before {
 .eam-nav-pill a:hover { color: #111827; }
 .eam-nav-pill a.active { color: #2563eb; }
 
+.eam-tenant-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 9999px;
+  background: #EDEDED;
+  color: #374151;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+.eam-tenant-switcher:hover { color: #111827; }
+.eam-tenant-switcher strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #2563eb;
+}
+
 /* Brand mark (filled SVG path from spec) */
 .eam-nav-logo svg { width: 18px; height: 18px; }
 
@@ -360,5 +383,17 @@ code {
   transition: background 200ms;
 }
 .eam-modal-content button:hover { background: #2563eb; }
+
+.eam-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.eam-modal-actions button:first-child {
+  background: #f3f4f6;
+  color: #374151;
+}
+.eam-modal-actions button:first-child:hover { background: #e5e7eb; }
 
 .eam-error { color: #b91c1c; }
