@@ -22,8 +22,17 @@ function Logo() {
 export default function App() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f0f0ee]">
-      {/* Background: CSS-animated gradient mesh (replaces spec's prosthetics video) */}
+      {/* Gradient mesh sits behind the video as a fallback while it loads (and if the network blocks it). */}
       <div className="absolute inset-0 w-full h-full eam-bg" aria-hidden="true" />
+      <video
+        className="absolute inset-0 w-full h-full object-cover"
+        src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_215831_c6a8989c-d716-4d8d-8745-e972a2eec711.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
 
       {/* Foreground */}
       <div className="relative z-10 flex flex-col min-h-screen">
