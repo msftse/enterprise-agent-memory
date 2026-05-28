@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.opencode
+infra
+docs
+*.md
+.env*
+terraform.tfstate*
+.terraform

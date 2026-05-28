@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* CSS-animated gradient mesh background — stands in for the spec's <video> */
+@keyframes meshDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(-2%, 1%, 0) rotate(0.5deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+
+.eam-bg {
+  background:
+    radial-gradient(60% 60% at 20% 20%, rgba(96, 165, 250, 0.35), transparent 60%),
+    radial-gradient(50% 50% at 80% 30%, rgba(167, 139, 250, 0.25), transparent 60%),
+    radial-gradient(70% 70% at 70% 80%, rgba(59, 130, 246, 0.20), transparent 60%),
+    radial-gradient(40% 40% at 10% 90%, rgba(244, 114, 182, 0.18), transparent 60%),
+    linear-gradient(135deg, #f7f7f5 0%, #e9e9e6 100%);
+  animation: meshDrift 20s ease-in-out infinite;
+  filter: saturate(1.05);
+}

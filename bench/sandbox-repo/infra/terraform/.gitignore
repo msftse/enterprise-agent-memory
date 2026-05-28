@@ -1,0 +1,13 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+.terraform/
+*.tfplan
+
+# Sensitive variable files
+*.tfvars
+!example.tfvars
+
+# OS
+.DS_Store

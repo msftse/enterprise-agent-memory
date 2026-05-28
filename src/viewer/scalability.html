@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scalability — Enterprise Agent Memory</title>
+  <link rel="stylesheet" href="/viewer/styles.css">
+</head>
+<body>
+  <header class="eam-nav">
+    <a class="eam-nav-logo" href="/viewer/" aria-label="home">
+      <svg viewBox="0 0 256 256" fill="none" aria-hidden="true">
+        <path fill="rgb(84,84,84)" d="M 160 88 L 194 34 L 216 0 L 256 0 L 256 40 L 221.5 93.5 L 200 128 L 256 128 L 256 256 L 96 256 L 96 168 L 64.246 220 L 40 256 L 0 256 L 0 216 L 34 162 L 56 128 L 0 128 L 0 0 L 160 0 Z"/>
+      </svg>
+    </a>
+    <nav class="eam-nav-pill">
+      <a href="/viewer/savings.html">Savings</a>
+      <a href="/viewer/token-economy.html">Token Economy</a>
+      <a href="/viewer/scalability.html" class="active">Scalability</a>
+      <a href="/viewer/explorer.html">Explorer</a>
+      <a href="https://github.com/msftse/enterprise-agent-memory">Repo</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="eam-card">
+      <div id="replicas">Loading…</div>
+    </section>
+
+    <section class="eam-grid">
+      <div class="eam-card">
+        <h3>Latency (last 1000 requests on this replica)</h3>
+        <table class="eam-table" id="tbl-lat"></table>
+      </div>
+      <div class="eam-card">
+        <h3>Throughput (rolling)</h3>
+        <table class="eam-table" id="tbl-rps"></table>
+      </div>
+    </section>
+
+    <section class="eam-card">
+      <h3>Latest benchmark run</h3>
+      <table class="eam-table" id="tbl-bench"><tr><td>No benchmark run yet. Run <code>npm run bench</code> from the repo when Wave 3 ships.</td></tr></table>
+    </section>
+  </main>
+
+  <script type="module">
+    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtPct, table } from '/viewer/app.js';
+    requireKey();
+
+    async function refresh() {
+      const m = await fetchEam('/api/v1/scalability/metrics');
+      document.getElementById('replicas').textContent =
+        `Replicas: configured ${m.replicas.configured.min}–${m.replicas.configured.max} · ` +
+        `Started ${m.uptime.startedAt} · Restarts ${m.uptime.restartCount}`;
+
+      table(
+        document.getElementById('tbl-lat'),
+        ['', ''],
+        [
+          ['p50', `${fmtNumber(m.latency.p50Ms)} ms`],
+          ['p95', `${fmtNumber(m.latency.p95Ms)} ms`],
+          ['p99', `${fmtNumber(m.latency.p99Ms)} ms`],
+          ['samples', m.latency.sampleSize],
+        ],
+      );
+
+      table(
+        document.getElementById('tbl-rps'),
+        ['Window', 'RPM'],
+        [
+          ['last 1 min',  m.throughput.rpmLast1m],
+          ['last 5 min',  m.throughput.rpmLast5m.toFixed(2)],
+          ['last 15 min', m.throughput.rpmLast15m.toFixed(2)],
+        ],
+      );
+
+      try {
+        const b = await fetchEam('/api/v1/benchmarks/latest');
+        if (b?.results?.length) {
+          table(
+            document.getElementById('tbl-bench'),
+            ['Task', 'baseline', 'w/ memory', 'Δ'],
+            b.results.map((r) => [
+              r.taskName,
+              r.baseline.promptTokens + r.baseline.completionTokens,
+              r.withMemory.promptTokens + r.withMemory.completionTokens,
+              fmtPct(r.deltaPct),
+            ]),
+          );
+        }
+      } catch (_) { /* benchmarks route not present until Wave 3 */ }
+    }
+
+    pollEvery(30000, refresh);
+  </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+/* Enterprise Agent Memory — Phase 2 dashboards.
+   Shares the visual language of the React landing at /viewer/:
+   off-white background, gradient mesh, pill nav, soft cards. */
+
+* { box-sizing: border-box; }
+
+@keyframes eamMeshDrift {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50%  { transform: translate3d(-2%, 1%, 0) rotate(0.5deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: #111827;
+  line-height: 1.5;
+  min-height: 100vh;
+  background: #f0f0ee;
+  position: relative;
+  overflow-x: hidden;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60% 60% at 20% 20%, rgba(96, 165, 250, 0.25), transparent 60%),
+    radial-gradient(50% 50% at 80% 30%, rgba(167, 139, 250, 0.18), transparent 60%),
+    radial-gradient(70% 70% at 70% 80%, rgba(59, 130, 246, 0.16), transparent 60%),
+    radial-gradient(40% 40% at 10% 90%, rgba(244, 114, 182, 0.14), transparent 60%),
+    linear-gradient(135deg, #f7f7f5 0%, #e9e9e6 100%);
+  animation: eamMeshDrift 20s ease-in-out infinite;
+  filter: saturate(1.05);
+  pointer-events: none;
+}
+
+/* Pill nav — matches the React landing */
+.eam-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 24px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.eam-nav-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: #EDEDED;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.eam-nav-pill {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #EDEDED;
+  border-radius: 12px;
+  padding: 12px 28px;
+}
+.eam-nav-pill a {
+  color: #374151;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 200ms;
+}
+.eam-nav-pill a:hover { color: #111827; }
+.eam-nav-pill a.active { color: #2563eb; }
+
+/* Brand mark (filled SVG path from spec) */
+.eam-nav-logo svg { width: 18px; height: 18px; }
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  position: relative;
+}
+
+.eam-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 22px;
+  margin-bottom: 16px;
+}
+.eam-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.eam-hero {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+.eam-hero-sub { color: #6b7280; margin-top: 4px; font-size: 0.95rem; }
+
+.eam-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) { .eam-grid { grid-template-columns: 1fr; } }
+
+table.eam-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+table.eam-table td, table.eam-table th {
+  padding: 8px 6px;
+  border-bottom: 1px solid rgba(243, 244, 246, 0.7);
+  text-align: left;
+  vertical-align: top;
+}
+table.eam-table th {
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+table.eam-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+code {
+  background: rgba(243, 244, 246, 0.85);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+/* API key modal — unchanged behavior, lightly restyled */
+.eam-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.eam-modal-content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+}
+.eam-modal-content h2 { margin-top: 0; font-size: 18px; }
+.eam-modal-content input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+.eam-tenant-label { display: block; margin: 12px 0; color: #374151; font-size: 0.9rem; }
+.eam-modal-content button {
+  margin-top: 12px;
+  padding: 10px 22px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 200ms;
+}
+.eam-modal-content button:hover { background: #2563eb; }
+
+.eam-error { color: #b91c1c; }

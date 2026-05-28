@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🧠 Enterprise Agent Memory</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  line-height: 1.5;
+}
+
+code, pre, .mono {
+  font-family: Consolas, "Courier New", Courier, monospace;
+}
+
+/* Layout */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--cp-surface);
+  border-right: 1px solid var(--cp-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.sidebar-header h1 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.sidebar-header .subtitle { font-size: 11px; color: var(--cp-text-muted); margin-top: 2px; }
+
+.nav-section { padding: 12px 8px 4px; }
+
+.nav-section-title {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--cp-text-muted); padding: 0 8px 4px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-radius: 0.625rem; cursor: pointer; font-size: 13px;
+  color: var(--cp-text-soft); transition: all 0.15s;
+  border: none; background: none; width: 100%; text-align: left;
+}
+
+.nav-item:hover { background: var(--cp-surface-soft); color: var(--cp-text); }
+.nav-item.active { background: var(--cp-accent-soft); color: var(--cp-accent); font-weight: 500; }
+
+.nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-item .badge {
+  margin-left: auto; background: var(--cp-accent-soft); color: var(--cp-accent);
+  font-size: 11px; padding: 1px 6px; border-radius: 10px; font-weight: 600;
+}
+
+/* Main */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.config-bar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  background: var(--cp-surface-soft); border-bottom: 1px solid var(--cp-border); font-size: 12px;
+}
+
+.config-bar label { color: var(--cp-text-muted); }
+
+.config-bar input, .config-bar select {
+  padding: 4px 8px; border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  background: var(--cp-surface); color: var(--cp-text); font-size: 12px; font-family: inherit;
+}
+
+.config-bar input:focus, .config-bar select:focus { outline: none; border-color: var(--cp-accent); }
+
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--cp-success); }
+.dot.red { background: var(--cp-danger); }
+.dot.yellow { background: var(--cp-warning); }
+
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* Cards */
+.card {
+  background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px;
+  padding: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.card + .card { margin-top: 12px; }
+.card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.card-title { font-size: 14px; font-weight: 600; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+
+.stat-card {
+  background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px;
+  padding: 16px 20px; box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.stat-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--cp-text-muted); margin-bottom: 4px; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: var(--cp-accent); }
+.stat-card .sub { font-size: 11px; color: var(--cp-text-soft); margin-top: 2px; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--cp-border); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--cp-text-muted); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--cp-border); vertical-align: top; }
+tr:hover td { background: var(--cp-surface-soft); }
+tr.clickable { cursor: pointer; }
+
+/* Tags */
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.tag.active { background: rgba(22,163,74,0.12); color: var(--cp-success); }
+.tag.completed { background: var(--cp-accent-soft); color: var(--cp-accent); }
+.tag.abandoned { background: rgba(220,38,38,0.12); color: var(--cp-danger); }
+.tag.file { background: rgba(0,120,212,0.12); color: var(--cp-link); }
+.tag.concept { background: rgba(177,31,75,0.12); color: var(--cp-accent); }
+.tag.library { background: rgba(22,163,74,0.12); color: var(--cp-success); }
+.tag.person { background: rgba(245,158,11,0.12); color: var(--cp-warning); }
+.tag.function { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.tag.error { background: rgba(220,38,38,0.12); color: var(--cp-danger); }
+.tag.pattern { background: rgba(6,182,212,0.12); color: #06b6d4; }
+.tag.project { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+.tag.default { background: var(--cp-surface-soft); color: var(--cp-text-muted); }
+
+/* Buttons */
+.btn {
+  padding: 6px 14px; border-radius: 0.625rem; border: 1px solid var(--cp-border);
+  background: var(--cp-surface); color: var(--cp-text); font-size: 12px;
+  font-family: inherit; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.btn:hover { border-color: var(--cp-border-strong); }
+.btn.primary { background: var(--cp-accent); color: var(--cp-accent-fg); border-color: var(--cp-accent); }
+.btn.primary:hover { background: var(--cp-accent-hover); }
+
+/* Search */
+.search-box { display: flex; gap: 8px; margin-bottom: 20px; }
+.search-box input {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  background: var(--cp-surface); color: var(--cp-text); font-size: 14px; font-family: inherit;
+}
+.search-box input:focus { outline: none; border-color: var(--cp-accent); box-shadow: 0 0 0 3px var(--cp-accent-soft); }
+.search-box select {
+  padding: 10px 12px; border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  background: var(--cp-surface); color: var(--cp-text); font-size: 13px; font-family: inherit;
+}
+
+/* Results */
+.result-card {
+  background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px;
+  padding: 16px; margin-bottom: 12px; box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.result-card .result-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.result-card .score {
+  margin-left: auto; font-size: 12px; font-weight: 600; color: var(--cp-accent);
+  background: var(--cp-accent-soft); padding: 2px 8px; border-radius: 10px;
+}
+.result-card .result-content { font-size: 13px; color: var(--cp-text-soft); line-height: 1.6; }
+
+/* Graph */
+.graph-container { background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px; overflow: hidden; }
+.graph-canvas { width: 100%; height: 500px; display: block; }
+.graph-legend { display: flex; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--cp-border); flex-wrap: wrap; }
+.graph-legend .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--cp-text-muted); }
+.graph-legend .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* Detail */
+.detail-panel {
+  background: var(--cp-surface); border: 1px solid var(--cp-border); border-radius: 16px;
+  padding: 20px; margin-top: 16px; box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.detail-panel h3 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+.detail-row { display: flex; padding: 6px 0; border-bottom: 1px solid var(--cp-border); font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .label { width: 140px; min-width: 140px; color: var(--cp-text-muted); font-weight: 500; }
+.detail-row .value { flex: 1; word-break: break-word; }
+
+/* Empty/Loading */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--cp-text-muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 16px; margin-bottom: 4px; color: var(--cp-text); }
+.empty-state p { font-size: 13px; }
+.loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--cp-text-muted); font-size: 13px; gap: 8px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--cp-border); border-top-color: var(--cp-accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+
+/* Toast */
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--cp-panel-strong); border: 1px solid var(--cp-border); border-radius: 0.625rem;
+  padding: 10px 16px; font-size: 13px; box-shadow: var(--cp-shadow); animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.theme-toggle { background: none; border: none; cursor: pointer; font-size: 18px; padding: 4px; color: var(--cp-text-muted); }
+
+.concepts-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.facts-list { list-style: none; padding: 0; }
+.facts-list li { padding: 4px 0; font-size: 13px; color: var(--cp-text-soft); }
+.facts-list li::before { content: "•"; color: var(--cp-accent); margin-right: 8px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>🧠 Agent Memory</h1>
+      <div class="subtitle">Enterprise Edition</div>
+    </div>
+    <nav class="nav-section">
+      <div class="nav-section-title">Overview</div>
+      <button class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" data-view="health" onclick="switchView('health')">
+        <span class="icon">💚</span> Health
+      </button>
+    </nav>
+    <nav class="nav-section">
+      <div class="nav-section-title">Data</div>
+      <button class="nav-item" data-view="sessions" onclick="switchView('sessions')">
+        <span class="icon">📁</span> Sessions
+        <span class="badge" id="badge-sessions">—</span>
+      </button>
+      <button class="nav-item" data-view="observations" onclick="switchView('observations')">
+        <span class="icon">👁</span> Observations
+      </button>
+      <button class="nav-item" data-view="memories" onclick="switchView('memories')">
+        <span class="icon">💡</span> Memories
+        <span class="badge" id="badge-memories">—</span>
+      </button>
+    </nav>
+    <nav class="nav-section">
+      <div class="nav-section-title">Intelligence</div>
+      <button class="nav-item" data-view="search" onclick="switchView('search')">
+        <span class="icon">🔍</span> Search
+      </button>
+      <button class="nav-item" data-view="graph" onclick="switchView('graph')">
+        <span class="icon">🕸️</span> Knowledge Graph
+      </button>
+    </nav>
+    <div style="flex:1"></div>
+    <div style="padding: 12px 16px; border-top: 1px solid var(--cp-border); display: flex; align-items: center; gap: 8px;">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
+      <span style="font-size: 11px; color: var(--cp-text-muted);">v0.2.0</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="config-bar">
+      <label>API:</label>
+      <input type="text" id="api-url" value="" placeholder="http://localhost:8080" style="width: 240px;" onchange="updateApiUrl()">
+      <label>Tenant:</label>
+      <input type="text" id="tenant-id" value="default" style="width: 120px;" onchange="updateTenantId()">
+      <div style="flex:1"></div>
+      <span id="health-indicator"><span class="dot yellow"></span> Connecting...</span>
+      <button class="btn" onclick="refreshCurrentView()">↻ Refresh</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="content" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="label">Sessions</div><div class="value" id="stat-sessions">—</div><div class="sub">Total sessions</div></div>
+        <div class="stat-card"><div class="label">Observations</div><div class="value" id="stat-observations">—</div><div class="sub">Compressed &amp; indexed</div></div>
+        <div class="stat-card"><div class="label">Memories</div><div class="value" id="stat-memories">—</div><div class="sub">Active memories</div></div>
+        <div class="stat-card"><div class="label">Graph Nodes</div><div class="value" id="stat-nodes">—</div><div class="sub">Knowledge entities</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Recent Sessions</span></div>
+        <div id="dashboard-sessions"></div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div class="content" id="view-health" style="display:none"><div id="health-details"></div></div>
+
+    <!-- Sessions -->
+    <div class="content" id="view-sessions" style="display:none">
+      <div id="sessions-table"></div>
+      <div id="session-detail"></div>
+    </div>
+
+    <!-- Observations -->
+    <div class="content" id="view-observations" style="display:none">
+      <div style="margin-bottom:12px; display:flex; gap:8px; align-items:center;">
+        <label style="font-size:13px; color:var(--cp-text-muted);">Session:</label>
+        <select id="obs-session-select" onchange="loadObservations()" style="padding:6px 10px; border:1px solid var(--cp-border); border-radius:0.625rem; background:var(--cp-surface); color:var(--cp-text); font-size:13px; font-family:inherit; min-width:200px;"></select>
+      </div>
+      <div id="observations-list"></div>
+      <div id="observation-detail"></div>
+    </div>
+
+    <!-- Memories -->
+    <div class="content" id="view-memories" style="display:none">
+      <div id="memories-list"></div>
+      <div id="memory-detail"></div>
+    </div>
+
+    <!-- Search -->
+    <div class="content" id="view-search" style="display:none">
+      <div class="search-box">
+        <input type="text" id="search-query" placeholder="Search observations &amp; memories..." onkeydown="if(event.key==='Enter')doSearch()">
+        <select id="search-scope">
+          <option value="all">All</option>
+          <option value="observations">Observations</option>
+          <option value="memories">Memories</option>
+        </select>
+        <button class="btn primary" onclick="doSearch()">🔍 Search</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+
+    <!-- Graph -->
+    <div class="content" id="view-graph" style="display:none">
+      <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+        <button class="btn primary" onclick="loadGraph()">Load Graph</button>
+        <select id="graph-type-filter" style="padding:6px 10px; border:1px solid var(--cp-border); border-radius:0.625rem; background:var(--cp-surface); color:var(--cp-text); font-size:13px; font-family:inherit;">
+          <option value="">All Types</option>
+          <option value="file">Files</option>
+          <option value="concept">Concepts</option>
+          <option value="library">Libraries</option>
+          <option value="function">Functions</option>
+          <option value="person">People</option>
+          <option value="error">Errors</option>
+          <option value="pattern">Patterns</option>
+          <option value="project">Projects</option>
+        </select>
+        <span style="font-size:12px; color:var(--cp-text-muted);" id="graph-info"></span>
+      </div>
+      <div class="graph-container">
+        <canvas class="graph-canvas" id="graph-canvas"></canvas>
+        <div class="graph-legend" id="graph-legend"></div>
+      </div>
+      <div id="graph-node-detail"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ---- State ----
+let API_URL = '';
+let TENANT_ID = 'default';
+let currentView = 'dashboard';
+
+(function initApiUrl() {
+  API_URL = window.location.origin;
+  document.getElementById('api-url').value = API_URL;
+})();
+
+function updateApiUrl() {
+  API_URL = document.getElementById('api-url').value.replace(/\/$/, '');
+  checkHealth();
+  refreshCurrentView();
+}
+
+function updateTenantId() {
+  TENANT_ID = document.getElementById('tenant-id').value || 'default';
+  refreshCurrentView();
+}
+
+// ---- API ----
+// Phase 2: API-key gate. Read from same localStorage slot the savings dashboard uses.
+function eamApiKey() {
+  let k = localStorage.getItem('eam-api-key');
+  if (!k) {
+    k = prompt('Paste your eam-mcp API key (prefix is your name):');
+    if (k) localStorage.setItem('eam-api-key', k.trim());
+  }
+  return k || '';
+}
+async function api(path, options = {}) {
+  const url = `${API_URL}${path}`;
+  const tenant = localStorage.getItem('eam-tenant') || TENANT_ID;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'x-tenant-id': tenant,
+      'x-api-key': eamApiKey(),
+      ...(options.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem('eam-api-key');
+    throw new Error('API key rejected — refresh and re-enter');
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---- Toast ----
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.style.borderLeftColor = type === 'error' ? 'var(--cp-danger)' : 'var(--cp-success)';
+  el.style.borderLeftWidth = '3px';
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ---- Theme ----
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+}
+
+// ---- Navigation ----
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  document.querySelectorAll('.content').forEach(el => el.style.display = el.id === `view-${view}` ? '' : 'none');
+  refreshCurrentView();
+}
+
+function refreshCurrentView() {
+  const handlers = { dashboard: loadDashboard, health: loadHealth, sessions: loadSessions, observations: loadObservationSessions, memories: loadMemories, graph: loadGraph };
+  if (handlers[currentView]) handlers[currentView]();
+}
+
+// ---- Health ----
+async function checkHealth() {
+  const indicator = document.getElementById('health-indicator');
+  try {
+    const res = await api('/api/v1/health');
+    const status = res.data.status;
+    const dot = status === 'healthy' ? 'green' : status === 'degraded' ? 'yellow' : 'red';
+    indicator.innerHTML = `<span class="dot ${dot}"></span> ${status}`;
+    return res.data;
+  } catch (e) {
+    indicator.innerHTML = `<span class="dot red"></span> Disconnected`;
+    return null;
+  }
+}
+
+async function loadHealth() {
+  const container = document.getElementById('health-details');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Checking health...</div>';
+  try {
+    const res = await api('/api/v1/health');
+    const d = res.data;
+    container.innerHTML = `
+      <div class="stats-grid">
+        ${Object.entries(d.services).map(([name, status]) => `
+          <div class="stat-card">
+            <div class="label">${name}</div>
+            <div class="value" style="font-size:20px; color: ${status === 'healthy' ? 'var(--cp-success)' : 'var(--cp-danger)'}">
+              ${status === 'healthy' ? '✅' : '❌'} ${status}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Raw Response</span></div>
+        <pre class="mono" style="font-size:12px; overflow-x:auto; padding:8px; background:var(--cp-surface-soft); border-radius:0.625rem;">${JSON.stringify(d, null, 2)}</pre>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">❌</div><h3>Cannot Connect</h3><p>${e.message}</p></div>`;
+  }
+}
+
+// ---- Dashboard ----
+async function loadDashboard() {
+  try {
+    const [sessions, memories, nodes] = await Promise.all([
+      api('/api/v1/sessions?limit=50').catch(() => ({ data: { items: [] } })),
+      api('/api/v1/memories?limit=50').catch(() => ({ data: { items: [] } })),
+      api('/api/v1/graph/nodes?limit=200').catch(() => ({ data: { items: [] } })),
+    ]);
+    const sItems = sessions.data?.items || [];
+    const mItems = memories.data?.items || [];
+    const nItems = nodes.data?.items || [];
+
+    document.getElementById('stat-sessions').textContent = sItems.length;
+    document.getElementById('stat-memories').textContent = mItems.length;
+    document.getElementById('stat-nodes').textContent = nItems.length;
+    document.getElementById('badge-sessions').textContent = sItems.length;
+    document.getElementById('badge-memories').textContent = mItems.length;
+
+    const totalObs = sItems.reduce((sum, s) => sum + (s.observationCount || 0), 0);
+    document.getElementById('stat-observations').textContent = totalObs;
+
+    const recent = sItems.slice(0, 5);
+    document.getElementById('dashboard-sessions').innerHTML = recent.length ? `
+      <table>
+        <thead><tr><th>Project</th><th>Status</th><th>Observations</th><th>Started</th></tr></thead>
+        <tbody>
+          ${recent.map(s => `
+            <tr class="clickable" onclick="switchView('sessions')">
+              <td><strong>${esc(s.project)}</strong><br><span style="font-size:11px; color:var(--cp-text-muted)" class="mono">${s.id.slice(0,12)}…</span></td>
+              <td><span class="tag ${s.status}">${s.status}</span></td>
+              <td>${s.observationCount || 0}</td>
+              <td style="font-size:12px; color:var(--cp-text-muted)">${timeAgo(s.startedAt)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : '<div class="empty-state"><div class="icon">📁</div><h3>No sessions yet</h3><p>Create a session via the API to get started.</p></div>';
+
+    checkHealth();
+  } catch (e) {
+    toast('Failed to load dashboard: ' + e.message, 'error');
+  }
+}
+
+// ---- Sessions ----
+async function loadSessions() {
+  const container = document.getElementById('sessions-table');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading sessions...</div>';
+  document.getElementById('session-detail').innerHTML = '';
+  try {
+    const res = await api('/api/v1/sessions?limit=100');
+    const items = res.data?.items || [];
+    if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">📁</div><h3>No sessions</h3></div>'; return; }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>ID</th><th>Project</th><th>Status</th><th>Observations</th><th>Model</th><th>Started</th></tr></thead>
+        <tbody>
+          ${items.map(s => `
+            <tr class="clickable" onclick="showSessionDetail('${s.id}')">
+              <td class="mono" style="font-size:12px">${s.id.slice(0,16)}…</td>
+              <td><strong>${esc(s.project)}</strong></td>
+              <td><span class="tag ${s.status}">${s.status}</span></td>
+              <td>${s.observationCount || 0}</td>
+              <td style="font-size:12px; color:var(--cp-text-muted)">${esc(s.model || '—')}</td>
+              <td style="font-size:12px; color:var(--cp-text-muted)">${timeAgo(s.startedAt)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+async function showSessionDetail(id) {
+  const container = document.getElementById('session-detail');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const res = await api(`/api/v1/sessions/${id}`);
+    const s = res.data;
+    container.innerHTML = `
+      <div class="detail-panel">
+        <h3>📁 Session Details</h3>
+        <div class="detail-row"><div class="label">ID</div><div class="value mono">${s.id}</div></div>
+        <div class="detail-row"><div class="label">Project</div><div class="value">${esc(s.project)}</div></div>
+        <div class="detail-row"><div class="label">Status</div><div class="value"><span class="tag ${s.status}">${s.status}</span></div></div>
+        <div class="detail-row"><div class="label">CWD</div><div class="value mono">${esc(s.cwd)}</div></div>
+        <div class="detail-row"><div class="label">Model</div><div class="value">${esc(s.model || '—')}</div></div>
+        <div class="detail-row"><div class="label">Observations</div><div class="value">${s.observationCount}</div></div>
+        <div class="detail-row"><div class="label">Started</div><div class="value">${new Date(s.startedAt).toLocaleString()}</div></div>
+        ${s.endedAt ? `<div class="detail-row"><div class="label">Ended</div><div class="value">${new Date(s.endedAt).toLocaleString()}</div></div>` : ''}
+        ${s.summary ? `<div class="detail-row"><div class="label">Summary</div><div class="value">${esc(s.summary)}</div></div>` : ''}
+        ${s.tags?.length ? `<div class="detail-row"><div class="label">Tags</div><div class="value">${s.tags.map(t => `<span class="tag default">${esc(t)}</span>`).join(' ')}</div></div>` : ''}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+// ---- Observations ----
+async function loadObservationSessions() {
+  const select = document.getElementById('obs-session-select');
+  try {
+    const res = await api('/api/v1/sessions?limit=100');
+    const items = res.data?.items || [];
+    select.innerHTML = '<option value="">Select a session...</option>' +
+      items.map(s => `<option value="${s.id}">${esc(s.project)} (${s.id.slice(0,8)}…) — ${s.observationCount || 0} obs</option>`).join('');
+  } catch (e) {
+    select.innerHTML = '<option value="">Error loading sessions</option>';
+  }
+}
+
+async function loadObservations() {
+  const sessionId = document.getElementById('obs-session-select').value;
+  const container = document.getElementById('observations-list');
+  document.getElementById('observation-detail').innerHTML = '';
+  if (!sessionId) { container.innerHTML = ''; return; }
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading observations...</div>';
+  try {
+    const res = await api(`/api/v1/sessions/${sessionId}/observations?limit=100`);
+    const items = res.data?.items || [];
+    if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">👁</div><h3>No observations</h3></div>'; return; }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Type</th><th>Title</th><th>Importance</th><th>Concepts</th><th>Time</th></tr></thead>
+        <tbody>
+          ${items.map((o, i) => `
+            <tr class="clickable" onclick='showObservationDetail(observationCache[${i}])'>
+              <td><span class="tag default">${esc(o.type)}</span></td>
+              <td><strong>${esc(o.title)}</strong></td>
+              <td>${importanceBar(o.importance)}</td>
+              <td><div class="concepts-tags">${(o.concepts||[]).slice(0,3).map(c => `<span class="tag concept">${esc(c)}</span>`).join('')}</div></td>
+              <td style="font-size:12px; color:var(--cp-text-muted)">${timeAgo(o.timestamp)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    window.observationCache = items;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function showObservationDetail(o) {
+  document.getElementById('observation-detail').innerHTML = `
+    <div class="detail-panel">
+      <h3>👁 ${esc(o.title)}</h3>
+      <div class="detail-row"><div class="label">ID</div><div class="value mono">${o.id}</div></div>
+      <div class="detail-row"><div class="label">Type</div><div class="value"><span class="tag default">${esc(o.type)}</span></div></div>
+      <div class="detail-row"><div class="label">Importance</div><div class="value">${importanceBar(o.importance)} ${o.importance}/10</div></div>
+      ${o.subtitle ? `<div class="detail-row"><div class="label">Subtitle</div><div class="value">${esc(o.subtitle)}</div></div>` : ''}
+      <div class="detail-row"><div class="label">Content</div><div class="value">${esc(o.content || o.narrative || '—')}</div></div>
+      ${o.facts?.length ? `<div class="detail-row"><div class="label">Facts</div><div class="value"><ul class="facts-list">${o.facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div></div>` : ''}
+      <div class="detail-row"><div class="label">Concepts</div><div class="value"><div class="concepts-tags">${(o.concepts||[]).map(c => `<span class="tag concept">${esc(c)}</span>`).join('')}</div></div></div>
+      ${o.files?.length ? `<div class="detail-row"><div class="label">Files</div><div class="value"><div class="concepts-tags">${o.files.map(f => `<span class="tag file">${esc(f)}</span>`).join('')}</div></div></div>` : ''}
+      <div class="detail-row"><div class="label">Timestamp</div><div class="value">${new Date(o.timestamp).toLocaleString()}</div></div>
+      ${o.embedding ? `<div class="detail-row"><div class="label">Embedding</div><div class="value mono" style="font-size:11px">[${o.embedding.length} dimensions]</div></div>` : ''}
+    </div>
+  `;
+}
+
+// ---- Memories ----
+async function loadMemories() {
+  const container = document.getElementById('memories-list');
+  document.getElementById('memory-detail').innerHTML = '';
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading memories...</div>';
+  try {
+    const res = await api('/api/v1/memories?limit=100');
+    const items = res.data?.items || [];
+    if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">💡</div><h3>No memories yet</h3><p>Memories are created from patterns in observations.</p></div>'; return; }
+    container.innerHTML = `
+      <table>
+        <thead><tr><th>Type</th><th>Title</th><th>Strength</th><th>Version</th><th>Created</th></tr></thead>
+        <tbody>
+          ${items.map((m, i) => `
+            <tr class="clickable" onclick='showMemoryDetail(memoryCache[${i}])'>
+              <td><span class="tag default">${esc(m.type)}</span></td>
+              <td><strong>${esc(m.title)}</strong><br><span style="font-size:11px; color:var(--cp-text-muted)">${esc((m.content||'').slice(0,80))}${(m.content||'').length > 80 ? '…' : ''}</span></td>
+              <td>${strengthBar(m.strength)}</td>
+              <td>v${m.version}</td>
+              <td style="font-size:12px; color:var(--cp-text-muted)">${timeAgo(m.createdAt)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    window.memoryCache = items;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><h3>Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function showMemoryDetail(m) {
+  document.getElementById('memory-detail').innerHTML = `
+    <div class="detail-panel">
+      <h3>💡 ${esc(m.title)}</h3>
+      <div class="detail-row"><div class="label">ID</div><div class="value mono">${m.id}</div></div>
+      <div class="detail-row"><div class="label">Type</div><div class="value"><span class="tag default">${esc(m.type)}</span></div></div>
+      <div class="detail-row"><div class="label">Content</div><div class="value">${esc(m.content)}</div></div>
+      <div class="detail-row"><div class="label">Strength</div><div class="value">${strengthBar(m.strength)} ${m.strength}/10</div></div>
+      <div class="detail-row"><div class="label">Version</div><div class="value">v${m.version} ${m.isLatest ? '(latest)' : ''}</div></div>
+      <div class="detail-row"><div class="label">Concepts</div><div class="value"><div class="concepts-tags">${(m.concepts||[]).map(c => `<span class="tag concept">${esc(c)}</span>`).join('')}</div></div></div>
+      ${m.files?.length ? `<div class="detail-row"><div class="label">Files</div><div class="value"><div class="concepts-tags">${m.files.map(f => `<span class="tag file">${esc(f)}</span>`).join('')}</div></div></div>` : ''}
+      <div class="detail-row"><div class="label">Sessions</div><div class="value mono" style="font-size:11px">${(m.sessionIds||[]).join(', ') || '—'}</div></div>
+      <div class="detail-row"><div class="label">Created</div><div class="value">${new Date(m.createdAt).toLocaleString()}</div></div>
+    </div>
+  `;
+}
+
+// ---- Search ----
+async function doSearch() {
+  const query = document.getElementById('search-query').value.trim();
+  if (!query) return;
+  const scope = document.getElementById('search-scope').value;
+  const container = document.getElementById('search-results');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div> Searching...</div>';
+  try {
+    const res = await api('/api/v1/search', { method: 'POST', body: JSON.stringify({ query, scope, limit: 20 }) });
+    const data = res.data;
+    const results = data.results || [];
+    if (!results.length) { container.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h3>No results</h3><p>Try a different query or broader scope.</p></div>'; return; }
+    container.innerHTML = `
+      <div style="font-size:12px; color:var(--cp-text-muted); margin-bottom:12px;">
+        ${data.totalCount || results.length} result${results.length !== 1 ? 's' : ''} ${data.searchDurationMs ? `in ${data.searchDurationMs}ms` : ''}
+      </div>
+      ${results.map(r => `
+        <div class="result-card">
+          <div class="result-header">
+            <span class="tag ${r.type === 'observation' ? 'default' : 'concept'}">${r.type}</span>
+            <strong>${esc(r.title)}</strong>
+            ${r.score != null ? `<span class="score">${(r.score * 100).toFixed(1)}%</span>` : ''}
+          </div>
+          <div class="result-content">${esc(r.content || '').slice(0, 300)}${(r.content||'').length > 300 ? '…' : ''}</div>
+        </div>
+      `).join('')}
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state"><h3>Search Error</h3><p>${e.message}</p></div>`;
+  }
+}
+
+// ---- Knowledge Graph ----
+const NODE_COLORS = {
+  file: '#0078d4', concept: '#b11f4b', library: '#16a34a', function: '#8b5cf6',
+  person: '#f59e0b', error: '#dc2626', pattern: '#06b6d4', project: '#8b5cf6',
+  decision: '#f97316', preference: '#ec4899', organization: '#6366f1',
+  location: '#14b8a6', event: '#a855f7',
+};
+
+let graphNodes = [], graphEdges = [];
+
+async function loadGraph() {
+  const typeFilter = document.getElementById('graph-type-filter').value;
+  const info = document.getElementById('graph-info');
+  try {
+    const params = typeFilter ? `?type=${typeFilter}&limit=200` : '?limit=200';
+    const [nodesRes, edgesRes] = await Promise.all([
+      api(`/api/v1/graph/nodes${params}`),
+      api('/api/v1/graph/edges?limit=500'),
+    ]);
+    graphNodes = nodesRes.data?.items || [];
+    graphEdges = edgesRes.data?.items || [];
+    info.textContent = `${graphNodes.length} nodes, ${graphEdges.length} edges`;
+    renderGraph();
+    renderGraphLegend();
+  } catch (e) {
+    info.textContent = `Error: ${e.message}`;
+  }
+}
+
+function renderGraph() {
+  const canvas = document.getElementById('graph-canvas');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = 500;
+  const W = canvas.width, H = canvas.height;
+
+  if (!graphNodes.length) {
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--cp-text-muted');
+    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No graph data. Click "Load Graph" to fetch nodes.', W/2, H/2);
+    return;
+  }
+
+  // Force-directed layout
+  const positions = new Map(), velocities = new Map();
+  graphNodes.forEach((n, i) => {
+    const angle = (2 * Math.PI * i) / graphNodes.length;
+    const r = Math.min(W, H) * 0.35;
+    positions.set(n.id, { x: W/2 + r * Math.cos(angle), y: H/2 + r * Math.sin(angle) });
+    velocities.set(n.id, { x: 0, y: 0 });
+  });
+
+  const nodeIds = new Set(graphNodes.map(n => n.id));
+  const validEdges = graphEdges.filter(e => nodeIds.has(e.sourceNodeId) && nodeIds.has(e.targetNodeId));
+
+  for (let iter = 0; iter < 100; iter++) {
+    for (let i = 0; i < graphNodes.length; i++) {
+      for (let j = i + 1; j < graphNodes.length; j++) {
+        const a = positions.get(graphNodes[i].id), b = positions.get(graphNodes[j].id);
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        const force = 5000 / (dist * dist);
+        const fx = (dx / dist) * force, fy = (dy / dist) * force;
+        velocities.get(graphNodes[i].id).x -= fx; velocities.get(graphNodes[i].id).y -= fy;
+        velocities.get(graphNodes[j].id).x += fx; velocities.get(graphNodes[j].id).y += fy;
+      }
+    }
+    for (const e of validEdges) {
+      const a = positions.get(e.sourceNodeId), b = positions.get(e.targetNodeId);
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const force = (dist - 120) * 0.01;
+      const fx = (dx / dist) * force, fy = (dy / dist) * force;
+      velocities.get(e.sourceNodeId).x += fx; velocities.get(e.sourceNodeId).y += fy;
+      velocities.get(e.targetNodeId).x -= fx; velocities.get(e.targetNodeId).y -= fy;
+    }
+    graphNodes.forEach(n => {
+      const p = positions.get(n.id), v = velocities.get(n.id);
+      v.x += (W/2 - p.x) * 0.001; v.y += (H/2 - p.y) * 0.001;
+      p.x += v.x * 0.85; p.y += v.y * 0.85;
+      v.x *= 0.9; v.y *= 0.9;
+      p.x = Math.max(40, Math.min(W - 40, p.x));
+      p.y = Math.max(40, Math.min(H - 40, p.y));
+    });
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Edges
+  for (const e of validEdges) {
+    const a = positions.get(e.sourceNodeId), b = positions.get(e.targetNodeId);
+    if (!a || !b) continue;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--cp-border-strong');
+    ctx.lineWidth = Math.min(3, 0.5 + e.weight * 0.5);
+    ctx.globalAlpha = 0.4; ctx.stroke(); ctx.globalAlpha = 1;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    ctx.font = '9px "Segoe UI", sans-serif';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--cp-text-muted');
+    ctx.textAlign = 'center';
+    ctx.fillText(e.type, mx, my - 4);
+  }
+
+  // Nodes
+  for (const n of graphNodes) {
+    const p = positions.get(n.id);
+    const color = NODE_COLORS[n.type] || '#888';
+    const r = 8 + Math.min(8, (n.sourceObservationIds?.length || 1) * 2);
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = color; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--cp-surface');
+    ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = '11px "Segoe UI", sans-serif';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--cp-text');
+    ctx.textAlign = 'center';
+    ctx.fillText(n.name.length > 20 ? n.name.slice(0,18) + '…' : n.name, p.x, p.y + r + 14);
+  }
+
+  canvas.onclick = function(evt) {
+    const r = canvas.getBoundingClientRect();
+    const mx = evt.clientX - r.left, my = evt.clientY - r.top;
+    for (const n of graphNodes) {
+      const p = positions.get(n.id);
+      const dx = mx - p.x, dy = my - p.y;
+      if (dx*dx + dy*dy < 400) { showGraphNodeDetail(n); return; }
+    }
+  };
+}
+
+function renderGraphLegend() {
+  const types = [...new Set(graphNodes.map(n => n.type))].sort();
+  document.getElementById('graph-legend').innerHTML = types.map(t =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${NODE_COLORS[t] || '#888'}"></div>${t}</div>`
+  ).join('');
+}
+
+function showGraphNodeDetail(n) {
+  const connectedEdges = graphEdges.filter(e => e.sourceNodeId === n.id || e.targetNodeId === n.id);
+  const connected = connectedEdges.map(e => {
+    const otherId = e.sourceNodeId === n.id ? e.targetNodeId : e.sourceNodeId;
+    const other = graphNodes.find(gn => gn.id === otherId);
+    return { edge: e, node: other, direction: e.sourceNodeId === n.id ? '→' : '←' };
+  }).filter(c => c.node);
+
+  document.getElementById('graph-node-detail').innerHTML = `
+    <div class="detail-panel">
+      <h3><span class="tag ${n.type}">${n.type}</span> ${esc(n.name)}</h3>
+      <div class="detail-row"><div class="label">ID</div><div class="value mono">${n.id}</div></div>
+      <div class="detail-row"><div class="label">Source Observations</div><div class="value">${n.sourceObservationIds?.length || 0}</div></div>
+      <div class="detail-row"><div class="label">Created</div><div class="value">${new Date(n.createdAt).toLocaleString()}</div></div>
+      ${connected.length ? `
+        <div class="detail-row"><div class="label">Connections</div><div class="value">
+          ${connected.map(c => `
+            <div style="margin:2px 0; font-size:12px;">
+              ${c.direction} <span class="tag ${c.node.type}">${c.node.type}</span> <strong>${esc(c.node.name)}</strong>
+              <span style="color:var(--cp-text-muted);">(${c.edge.type}, weight: ${c.edge.weight})</span>
+            </div>
+          `).join('')}
+        </div></div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ---- Helpers ----
+function esc(s) { if (!s) return ''; const el = document.createElement('span'); el.textContent = s; return el.innerHTML; }
+
+function timeAgo(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function importanceBar(v) {
+  return `<div style="display:inline-flex; align-items:center; gap:4px;">
+    <div style="width:60px; height:6px; background:var(--cp-surface-soft); border-radius:3px; overflow:hidden;">
+      <div style="width:${(v||0)*10}%; height:100%; background:var(--cp-accent); border-radius:3px;"></div>
+    </div><span style="font-size:11px; color:var(--cp-text-muted)">${v}</span></div>`;
+}
+
+function strengthBar(v) {
+  return `<div style="display:inline-flex; align-items:center; gap:4px;">
+    <div style="width:60px; height:6px; background:var(--cp-surface-soft); border-radius:3px; overflow:hidden;">
+      <div style="width:${(v||0)*10}%; height:100%; background:var(--cp-success); border-radius:3px;"></div>
+    </div><span style="font-size:11px; color:var(--cp-text-muted)">${v}</span></div>`;
+}
+
+// Init
+loadDashboard();
+</script>
+</body>
+</html>

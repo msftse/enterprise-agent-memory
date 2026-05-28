@@ -1,0 +1,16 @@
+name: explain-compress-pipeline
+description: |
+  Agent asked to walk through the observation capture pipeline end-to-end.
+prompt: |
+  Walk me through what happens when a new observation is captured —
+  end-to-end. Files involved, services touched, and the order of steps.
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "captureObservation"
+    - "compress"
+    - "embedding"
+  orAfterTurns: 14
+expected:
+  - mentions blob archive, compress via LLM, embed, store in Cosmos, index in AI Search

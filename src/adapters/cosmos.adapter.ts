@@ -9,6 +9,7 @@ const CONTAINERS = [
   { id: 'graph-nodes', partitionKey: '/tenantId' },
   { id: 'graph-edges', partitionKey: '/tenantId' },
   { id: 'audit-entries', partitionKey: '/tenantId' },
+  { id: 'benchmarks', partitionKey: '/tenantId' },
 ] as const;
 
 export class CosmosAdapter {
@@ -111,6 +112,87 @@ export class CosmosAdapter {
     await this.ensureInitialized();
     const container = this.getContainer(containerName);
     await container.item(id, tenantId).delete();
+  }
+
+  // Phase 2 (Wave 3): persist benchmark runs.
+  async createBenchmark(tenantId: string, run: unknown): Promise<void> {
+    await this.ensureInitialized();
+    const r = run as { id: string };
+    await this.getContainer('benchmarks').items.create({ ...(run as object), tenantId });
+    void r.id; // suppress unused
+  }
+
+  async latestBenchmark(tenantId: string): Promise<unknown | null> {
+    await this.ensureInitialized();
+    const { resources } = await this.getContainer('benchmarks').items.query<unknown>({
+      query: 'SELECT TOP 1 * FROM c WHERE c.tenantId = @t ORDER BY c.ranAt DESC',
+      parameters: [{ name: '@t', value: tenantId }],
+    }).fetchAll();
+    return resources[0] ?? null;
+  }
+
+  async listBenchmarks(tenantId: string, limit: number): Promise<unknown[]> {
+    await this.ensureInitialized();
+    const { resources } = await this.getContainer('benchmarks').items.query<unknown>({
+      query: 'SELECT TOP @limit * FROM c WHERE c.tenantId = @t ORDER BY c.ranAt DESC',
+      parameters: [
+        { name: '@t', value: tenantId },
+        { name: '@limit', value: limit },
+      ],
+    }).fetchAll();
+    return resources;
+  }
+
+  // Phase 2: fetch the savings-relevant fields for all memories in a tenant.
+  // We aggregate in TypeScript rather than complex Cosmos SQL: simpler,
+  // easier to test, and at pilot scale the data set fits comfortably in memory.
+  async listMemoriesForSavings(
+    tenantId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      title: string;
+      createdAt: string;
+      sourceTokens?: number;
+      compressedTokens?: number;
+      recallCount?: number;
+      actor?: string;
+    }>
+  > {
+    await this.ensureInitialized();
+    const { resources } = await this.getContainer('memories').items.query<{
+      id: string;
+      title: string;
+      createdAt: string;
+      sourceTokens?: number;
+      compressedTokens?: number;
+      recallCount?: number;
+      actor?: string;
+    }>({
+      query: 'SELECT c.id, c.title, c.createdAt, c.sourceTokens, c.compressedTokens, c.recallCount, c.actor FROM c WHERE c.tenantId = @t',
+      parameters: [{ name: '@t', value: tenantId }],
+    }).fetchAll();
+    return resources;
+  }
+
+  // Phase 2: increment Memory.recallCount atomically via JSON Patch.
+  // Falls back to `set` for legacy memories that don't have the field yet
+  // (incr op requires the path to already exist as a number).
+  async incrementMemoryRecallCount(memoryId: string, tenantId: string): Promise<void> {
+    await this.ensureInitialized();
+    const item = this.getContainer('memories').item(memoryId, tenantId);
+    try {
+      await item.patch([{ op: 'incr', path: '/recallCount', value: 1 }]);
+    } catch (err: unknown) {
+      const code = (err as { code?: number } | null)?.code;
+      if (code === 400 || code === 404) {
+        await item.patch([{ op: 'set', path: '/recallCount', value: 1 }]).catch(() => {
+          // Swallow — fire-and-forget callers don't want to error here.
+        });
+        return;
+      }
+      throw err;
+    }
   }
 
   async query<T>(

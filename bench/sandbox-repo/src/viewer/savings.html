@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Savings — Enterprise Agent Memory</title>
+  <link rel="stylesheet" href="/viewer/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="eam-nav">
+    <strong>EAM dashboard</strong>
+    <a href="/viewer/savings.html" class="active">Savings</a>
+    <a href="/viewer/token-economy.html">Token Economy</a>
+    <a href="/viewer/scalability.html">Scalability</a>
+  </header>
+
+  <main>
+    <section class="eam-card">
+      <div class="eam-hero" id="hero-saved">—</div>
+      <div class="eam-hero-sub" id="hero-sub">Loading…</div>
+    </section>
+
+    <section class="eam-card">
+      <h3>Cumulative savings (last 30 days)</h3>
+      <canvas id="chart-timeseries" height="80"></canvas>
+    </section>
+
+    <section class="eam-grid">
+      <div class="eam-card">
+        <h3>By actor</h3>
+        <table class="eam-table" id="tbl-actors"></table>
+      </div>
+      <div class="eam-card">
+        <h3>Most-recalled memories</h3>
+        <table class="eam-table" id="tbl-top"></table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtUsd, mkLineChart, table } from '/viewer/app.js';
+    requireKey();
+
+    async function refresh() {
+      const s = await fetchEam('/api/v1/savings/summary');
+      document.getElementById('hero-saved').textContent =
+        `Saved ${fmtNumber(s.totalSavedTokens)} tokens ≈ ${fmtUsd(s.totalSavedUsd)}`;
+      document.getElementById('hero-sub').textContent =
+        `${s.memoryCount} memories · ${s.totalRecalls} recalls · ` +
+        `${(s.compressionRatio || 0).toFixed(1)}:1 avg compression`;
+
+      const ts = await fetchEam('/api/v1/savings/timeseries?days=30');
+      const labels = ts.buckets.map((b) => b.date);
+      let cum = 0;
+      const series = ts.buckets.map((b) => (cum += b.savedTokens));
+      mkLineChart(document.getElementById('chart-timeseries'), labels, series, 'Cumulative tokens saved');
+
+      const a = await fetchEam('/api/v1/savings/by-actor');
+      table(
+        document.getElementById('tbl-actors'),
+        ['Actor', 'Saved', 'Memories', 'Recalls'],
+        a.actors.map((x) => [x.actor, fmtNumber(x.savedTokens), x.memoryCount, x.recallCount]),
+      );
+
+      const t = await fetchEam('/api/v1/savings/top-memories?limit=10');
+      if (t.items.length === 0) {
+        document.getElementById('tbl-top').innerHTML = '<tr><td>No recalls yet — start using memory in Claude Code.</td></tr>';
+      } else {
+        table(
+          document.getElementById('tbl-top'),
+          ['×', 'Title'],
+          t.items.map((m) => [m.recallCount, m.title]),
+        );
+      }
+    }
+
+    pollEvery(30000, refresh);
+  </script>
+</body>
+</html>
