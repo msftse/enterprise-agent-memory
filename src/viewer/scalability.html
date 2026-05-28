@@ -45,8 +45,9 @@
   </main>
 
   <script type="module">
-    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtPct, table } from '/viewer/app.js';
+    import { fetchEam, pollEvery, requireKey, mountTenantSwitcher, fmtNumber, fmtPct, table } from '/viewer/app.js';
     requireKey();
+    mountTenantSwitcher();
 
     async function refresh() {
       const m = await fetchEam('/api/v1/scalability/metrics');
