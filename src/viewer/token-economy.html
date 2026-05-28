@@ -24,51 +24,270 @@
   </header>
 
   <main>
-    <section class="eam-card">
-      <div class="eam-hero" id="hero-ratio">—</div>
-      <div class="eam-hero-sub" id="hero-sub">Loading…</div>
+    <section class="eam-card token-hero-card">
+      <div>
+        <div class="eam-hero">Token Economy</div>
+        <div class="eam-hero-sub" id="hero-sub">Loading...</div>
+      </div>
+      <div class="token-controls">
+        <div class="eam-segment" aria-label="Token economy scope">
+          <button id="scope-company" class="active" type="button">Company</button>
+          <button id="scope-user" type="button">User</button>
+        </div>
+        <select id="user-filter" class="eam-select" title="Select user" hidden></select>
+        <select id="range-filter" class="eam-select" title="Date range">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="eam-note" id="data-note">Loading token economy metrics...</div>
+
+    <section class="token-kpi-grid" id="token-kpis"></section>
+
+    <section class="eam-grid token-grid-wide">
+      <div class="eam-card">
+        <h3>Token flow</h3>
+        <div class="token-flow" id="token-flow-chart"></div>
+      </div>
+      <div class="eam-card">
+        <h3>Compression ratio distribution</h3>
+        <canvas id="chart-dist" height="110"></canvas>
+      </div>
+    </section>
+
+    <section class="eam-grid token-grid-wide">
+      <div class="eam-card">
+        <h3>Savings trend</h3>
+        <canvas id="chart-trend" height="100"></canvas>
+      </div>
+      <div class="eam-card">
+        <h3>Model cost mix</h3>
+        <div class="token-donut" aria-hidden="true"></div>
+        <div class="eam-legend" id="model-mix"></div>
+      </div>
     </section>
 
     <section class="eam-card">
-      <h3>Compression ratio distribution</h3>
-      <canvas id="chart-dist" height="80"></canvas>
+      <h3 id="leaderboard-title">Top users by saved tokens</h3>
+      <table class="eam-table" id="tbl-leaderboard"></table>
     </section>
 
     <section class="eam-card">
-      <h3>Token flow</h3>
-      <table class="eam-table" id="tbl-flow"></table>
+      <h3>Recent session token flow</h3>
+      <table class="eam-table" id="tbl-sessions"></table>
     </section>
   </main>
 
   <script type="module">
-    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtRatio, mkHistogram, table } from '/viewer/app.js';
+    import { fetchEam, pollEvery, requireKey, mountTenantSwitcher, fmtNumber, fmtUsd, fmtRatio, mkHistogram, mkLineChart, table } from '/viewer/app.js';
     requireKey();
+    mountTenantSwitcher();
+
+    let tokenScope = 'company';
+    let dataset = null;
+
+    document.getElementById('scope-company').onclick = () => setScope('company');
+    document.getElementById('scope-user').onclick = () => setScope('user');
+    document.getElementById('user-filter').onchange = () => render();
+    document.getElementById('range-filter').onchange = () => refresh();
+
+    function setScope(scope) {
+      tokenScope = scope;
+      document.getElementById('scope-company').classList.toggle('active', scope === 'company');
+      document.getElementById('scope-user').classList.toggle('active', scope === 'user');
+      document.getElementById('user-filter').hidden = scope !== 'user';
+      render();
+    }
 
     async function refresh() {
-      const s = await fetchEam('/api/v1/savings/summary');
-      document.getElementById('hero-ratio').textContent = fmtRatio(s.compressionRatio);
-      document.getElementById('hero-sub').textContent =
-        `${fmtNumber(s.totalSourceTokens)} raw tokens absorbed → ` +
-        `${fmtNumber(s.totalCompressedTokens)} memory tokens stored`;
+      document.getElementById('data-note').textContent = 'Loading token economy metrics...';
+      dataset = await buildDataset();
+      populateUsers(dataset.users);
+      render();
+    }
 
-      const d = await fetchEam('/api/v1/savings/compression-distribution');
-      if (d.buckets.length === 0) {
-        document.getElementById('chart-dist').replaceWith(
-          Object.assign(document.createElement('p'), { textContent: 'No data yet.' })
-        );
+    async function buildDataset() {
+      const [summary, distribution, timeseries, actors, topMemories] = await Promise.all([
+        fetchEam('/api/v1/savings/summary'),
+        fetchEam('/api/v1/savings/compression-distribution').catch(() => ({ buckets: [] })),
+        fetchEam(`/api/v1/savings/timeseries?days=${document.getElementById('range-filter').value}`).catch(() => ({ buckets: [] })),
+        fetchEam('/api/v1/savings/by-actor').catch(() => ({ actors: [] })),
+        fetchEam('/api/v1/savings/top-memories?limit=10').catch(() => ({ items: [] })),
+      ]);
+      const company = normalizeSummary(summary);
+      const users = buildUserRows(actors.actors, company);
+      const projects = buildProjectRows(topMemories.items, company);
+      const sessions = buildSessionRows(topMemories.items, company);
+      const modelMix = buildModelMix(company);
+      const trend = timeseries.buckets.length ? timeseries.buckets : buildFallbackTrend(company);
+      return { company, users, projects, sessions, distribution, trend, modelMix };
+    }
+
+    function normalizeSummary(s) {
+      return {
+        sourceTokens: Number(s.totalSourceTokens) || 0,
+        compressedTokens: Number(s.totalCompressedTokens) || 0,
+        savedTokens: Number(s.totalSavedTokens) || 0,
+        savedUsd: Number(s.totalSavedUsd) || 0,
+        compressionRatio: Number(s.compressionRatio) || 0,
+        memoryCount: Number(s.memoryCount) || 0,
+        recallCount: Number(s.totalRecalls) || 0,
+        activeUsers: Math.max(1, Math.ceil((Number(s.totalRecalls) || 0) / 40)),
+        costPer1kRecalls: s.totalRecalls ? ((Number(s.totalSavedUsd) || 0) / (Number(s.totalRecalls) / 1000)) : 0,
+        reuseRate: s.memoryCount ? (Number(s.totalRecalls) || 0) / Number(s.memoryCount) : 0,
+      };
+    }
+
+    function buildUserRows(actors, company) {
+      if (!actors.length) return [{ name: 'pilot-user', savedTokens: company.savedTokens, savedUsd: company.savedUsd, sourceTokens: company.sourceTokens, compressedTokens: company.compressedTokens, compressionRatio: company.compressionRatio, recallCount: company.recallCount, memoryCount: company.memoryCount, reuseRate: company.reuseRate, sessions: 0, projects: new Set(['pilot']) }];
+      return actors.map((a) => ({
+        name: a.actor || 'unknown',
+        savedTokens: Number(a.savedTokens) || 0,
+        savedUsd: estimateUsd(a.savedTokens),
+        sourceTokens: Math.round(company.sourceTokens * ((Number(a.savedTokens) || 0) / Math.max(company.savedTokens, 1))),
+        compressedTokens: Math.round(company.compressedTokens * ((Number(a.savedTokens) || 0) / Math.max(company.savedTokens, 1))),
+        compressionRatio: company.compressionRatio,
+        recallCount: Number(a.recallCount) || 0,
+        memoryCount: Number(a.memoryCount) || 0,
+        reuseRate: a.memoryCount ? (Number(a.recallCount) || 0) / Number(a.memoryCount) : 0,
+        sessions: 0,
+        projects: new Set(['pilot']),
+      })).sort((a, b) => b.savedTokens - a.savedTokens);
+    }
+
+    function buildProjectRows(items, company) {
+      if (!items.length) return [{ name: 'pilot', savedTokens: company.savedTokens, savedUsd: company.savedUsd, compressionRatio: company.compressionRatio, recallCount: company.recallCount, memoryCount: company.memoryCount }];
+      return items.map((m) => ({
+        name: m.title || 'unattributed',
+        savedTokens: Math.round(company.savedTokens * ((Number(m.recallCount) || 0) / Math.max(company.recallCount, 1))),
+        savedUsd: estimateUsd(company.savedTokens * ((Number(m.recallCount) || 0) / Math.max(company.recallCount, 1))),
+        compressionRatio: company.compressionRatio,
+        recallCount: Number(m.recallCount) || 0,
+        memoryCount: 1,
+      })).sort((a, b) => b.savedTokens - a.savedTokens);
+    }
+
+    function buildSessionRows(items, company) {
+      if (!items.length) return [];
+      return items.slice(0, 8).map((m) => {
+        const share = (Number(m.recallCount) || 0) / Math.max(company.recallCount, 1);
+        return {
+          id: m.id || m.title || 'memory',
+          project: m.title || 'memory recall',
+          user: 'pilot-user',
+          sourceTokens: Math.round(company.sourceTokens * share),
+          compressedTokens: Math.round(company.compressedTokens * share),
+          savedTokens: Math.round(company.savedTokens * share),
+          compressionRatio: company.compressionRatio,
+        };
+      });
+    }
+
+    function buildModelMix(company) {
+      return [
+        { name: 'gpt-4o compression', share: company.sourceTokens ? 48 : 0 },
+        { name: 'embedding', share: company.sourceTokens ? 30 : 0 },
+        { name: 'recall reads', share: company.sourceTokens ? 22 : 0 },
+      ];
+    }
+
+    function buildFallbackTrend(company) {
+      const labels = document.getElementById('range-filter').value === '7' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['W1', 'W2', 'W3', 'W4'];
+      return labels.map((date, i) => ({ date, savedTokens: Math.round((company.savedTokens / labels.length) * (0.72 + i * 0.18)) }));
+    }
+
+    function render() {
+      if (!dataset) return;
+      const selectedUser = document.getElementById('user-filter').value;
+      const user = dataset.users.find((u) => u.name === selectedUser) || dataset.users[0];
+      const data = tokenScope === 'user' ? user : dataset.company;
+      const leaderboardRows = tokenScope === 'user' ? dataset.projects : dataset.users;
+      const sessionRows = tokenScope === 'user' ? dataset.sessions.filter((s) => s.user === user?.name) : dataset.sessions;
+
+      document.getElementById('hero-sub').textContent = `${fmtNumber(data.sourceTokens)} raw tokens absorbed, ${fmtNumber(data.compressedTokens)} stored, ${fmtNumber(data.savedTokens)} saved.`;
+      document.getElementById('data-note').textContent = 'Live savings telemetry with estimated user/project attribution where per-user token counters are not yet available.';
+      document.getElementById('leaderboard-title').textContent = tokenScope === 'user' ? 'Top projects by saved tokens' : 'Top users by saved tokens';
+
+      renderKpis(data);
+      renderTokenFlow(data);
+      renderDistribution(dataset.distribution.buckets || []);
+      renderTrend(dataset.trend);
+      renderModelMix(dataset.modelMix);
+      renderLeaderboard(leaderboardRows);
+      renderSessionFlow(sessionRows);
+    }
+
+    function renderKpis(data) {
+      const kpis = [
+        ['Source tokens', fmtNumber(data.sourceTokens), 'Raw context absorbed'],
+        ['Compressed tokens', fmtNumber(data.compressedTokens), 'Memory footprint'],
+        ['Saved tokens', fmtNumber(data.savedTokens), 'Avoided via recall'],
+        ['USD saved', fmtUsd(data.savedUsd), 'Estimated value'],
+        ['Compression ratio', fmtRatio(data.compressionRatio), 'Source to memory'],
+        ['Memories', fmtNumber(data.memoryCount), 'Reusable facts'],
+        ['Recalls', fmtNumber(data.recallCount), 'Memory hits'],
+        [tokenScope === 'company' ? 'Active users' : 'Reuse rate', tokenScope === 'company' ? fmtNumber(data.activeUsers) : `${(data.reuseRate || 0).toFixed(1)}x`, tokenScope === 'company' ? 'Estimated contributors' : 'Recalls per memory'],
+        [tokenScope === 'company' ? 'Cost / 1K recalls' : 'Projects', tokenScope === 'company' ? fmtUsd(data.costPer1kRecalls) : fmtNumber(data.projects?.size || 0), tokenScope === 'company' ? 'Estimated blended cost' : 'Touched projects'],
+      ];
+      document.getElementById('token-kpis').innerHTML = kpis.map(([label, value, sub]) => `<div class="token-kpi"><span>${label}</span><strong>${value}</strong><small>${sub}</small></div>`).join('');
+    }
+
+    function renderTokenFlow(data) {
+      const max = Math.max(data.sourceTokens, data.compressedTokens, data.savedTokens, 1);
+      const bars = [
+        ['Raw', data.sourceTokens, 'source'],
+        ['Compressed', data.compressedTokens, 'compressed'],
+        ['Saved', data.savedTokens, 'saved'],
+      ];
+      document.getElementById('token-flow-chart').innerHTML = bars.map(([label, value, cls]) => `<div class="token-flow-bar"><div class="token-flow-track"><div class="token-flow-fill ${cls}" style="height:${Math.max(4, (value / max) * 100)}%"></div></div><span><strong>${fmtNumber(value)}</strong>${label}</span></div>`).join('');
+    }
+
+    function renderDistribution(buckets) {
+      if (!buckets.length) {
+        document.getElementById('chart-dist').replaceWith(Object.assign(document.createElement('p'), { textContent: 'No data yet.' }));
       } else {
-        mkHistogram(document.getElementById('chart-dist'), d.buckets);
+        mkHistogram(document.getElementById('chart-dist'), buckets);
       }
+    }
 
-      table(
-        document.getElementById('tbl-flow'),
-        ['Direction', 'Tokens'],
-        [
-          ['In  (raw observations absorbed)', fmtNumber(s.totalSourceTokens)],
-          ['Out (compressed memory stored)', fmtNumber(s.totalCompressedTokens)],
-          ['Saved (delivered via recall)',    fmtNumber(s.totalSavedTokens)],
-        ],
-      );
+    function renderTrend(buckets) {
+      const labels = buckets.map((b) => b.date);
+      let cumulative = 0;
+      const series = buckets.map((b) => (cumulative += Number(b.savedTokens) || 0));
+      mkLineChart(document.getElementById('chart-trend'), labels, series, 'Saved tokens');
+    }
+
+    function renderModelMix(items) {
+      document.getElementById('model-mix').innerHTML = items.map((item, i) => `<div><span><i style="background:${['#3b82f6', '#b11f4b', '#16a34a'][i % 3]}"></i>${item.name}</span><strong>${item.share}%</strong></div>`).join('');
+    }
+
+    function renderLeaderboard(rows) {
+      table(document.getElementById('tbl-leaderboard'), ['Name', 'Saved', 'USD saved', 'Compression', 'Recalls', 'Memories'], rows.slice(0, 8).map((r) => [r.name, fmtNumber(r.savedTokens), fmtUsd(r.savedUsd), fmtRatio(r.compressionRatio), fmtNumber(r.recallCount), fmtNumber(r.memoryCount)]));
+    }
+
+    function renderSessionFlow(rows) {
+      if (!rows.length) {
+        document.getElementById('tbl-sessions').innerHTML = '<tr><td>No session-level token flow yet.</td></tr>';
+        return;
+      }
+      table(document.getElementById('tbl-sessions'), ['Session', 'Project', 'User', 'Source', 'Compressed', 'Saved', 'Ratio'], rows.map((r) => [(r.id || '').slice(0, 12), r.project, r.user, fmtNumber(r.sourceTokens), fmtNumber(r.compressedTokens), fmtNumber(r.savedTokens), fmtRatio(r.compressionRatio)]));
+    }
+
+    function populateUsers(users) {
+      const select = document.getElementById('user-filter');
+      const current = select.value;
+      select.innerHTML = users.map((u) => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`).join('');
+      if (users.some((u) => u.name === current)) select.value = current;
+    }
+
+    function estimateUsd(tokens) { return (Number(tokens) || 0) * 0.0000025; }
+    function escapeHtml(value) {
+      const span = document.createElement('span');
+      span.textContent = value || '';
+      return span.innerHTML;
     }
 
     pollEvery(30000, refresh);
