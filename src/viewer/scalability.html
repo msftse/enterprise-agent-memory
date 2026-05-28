@@ -37,7 +37,7 @@
   </main>
 
   <script type="module">
-    import { fetchEam, pollEvery, requireKey, fmtPct, table } from '/viewer/app.js';
+    import { fetchEam, pollEvery, requireKey, fmtNumber, fmtPct, table } from '/viewer/app.js';
     requireKey();
 
     async function refresh() {
@@ -50,9 +50,9 @@
         document.getElementById('tbl-lat'),
         ['', ''],
         [
-          ['p50', `${m.latency.p50Ms} ms`],
-          ['p95', `${m.latency.p95Ms} ms`],
-          ['p99', `${m.latency.p99Ms} ms`],
+          ['p50', `${fmtNumber(m.latency.p50Ms)} ms`],
+          ['p95', `${fmtNumber(m.latency.p95Ms)} ms`],
+          ['p99', `${fmtNumber(m.latency.p99Ms)} ms`],
           ['samples', m.latency.sampleSize],
         ],
       );

@@ -168,7 +168,16 @@ export function registerSavingsRoutes(app: FastifyInstance, cosmos: CosmosAdapte
       const label = compressionBucketLabel(r);
       counts.set(label, (counts.get(label) ?? 0) + 1);
     }
-    const buckets = [...counts.entries()].map(([bucket, count]) => ({ bucket, count }));
+    // Emit buckets in canonical low→high ratio order so the histogram reads left-to-right.
+    const buckets: Array<{ bucket: string; count: number }> = [];
+    for (let i = 0; i < COMPRESSION_BUCKET_EDGES.length - 1; i++) {
+      const label = `${COMPRESSION_BUCKET_EDGES[i]}:1-${COMPRESSION_BUCKET_EDGES[i + 1]}:1`;
+      const count = counts.get(label) ?? 0;
+      if (count > 0) buckets.push({ bucket: label, count });
+    }
+    const tailLabel = `${COMPRESSION_BUCKET_EDGES[COMPRESSION_BUCKET_EDGES.length - 1]}:1+`;
+    const tailCount = counts.get(tailLabel) ?? 0;
+    if (tailCount > 0) buckets.push({ bucket: tailLabel, count: tailCount });
     return envelope({ buckets }, tenant);
   });
 }
