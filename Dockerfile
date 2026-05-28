@@ -5,6 +5,10 @@ COPY package*.json ./
 RUN npm ci --production=false
 COPY tsconfig.json ./
 COPY src/ ./src/
+COPY landing/package*.json ./landing/
+RUN npm ci --prefix landing
+COPY landing/ ./landing/
+RUN npm run build --prefix landing
 RUN npx tsup src/index.ts --format esm --dts --clean
 
 # Stage 2: Production

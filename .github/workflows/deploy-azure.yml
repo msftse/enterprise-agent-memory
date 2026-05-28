@@ -1,0 +1,99 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  IMAGE_NAME: agent-memory
+
+jobs:
+  deploy:
+    name: Build and deploy Container App
+    runs-on: ubuntu-latest
+    environment: azure-dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            landing/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci
+
+      - name: Install landing dependencies
+        run: npm ci --prefix landing
+
+      - name: Build landing assets
+        run: npm run build --prefix landing
+
+      - name: Run tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Allow Container App identity to pull from ACR
+        run: |
+          az containerapp registry set \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --server "${{ vars.ACR_LOGIN_SERVER }}" \
+            --identity system
+
+      - name: Build and push image
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --tag "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:$IMAGE_TAG" \
+            --tag "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:latest" \
+            .
+          docker push "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+          docker push "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:latest"
+
+      - name: Deploy Container App revision
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          az containerapp update \
+            --name "${{ vars.CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --image "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+
+      - name: Verify deployed health endpoint
+        if: ${{ vars.CONTAINER_APP_URL != '' }}
+        run: |
+          curl --fail --show-error --silent --retry 10 --retry-delay 6 \
+            "${{ vars.CONTAINER_APP_URL }}/api/v1/health"
