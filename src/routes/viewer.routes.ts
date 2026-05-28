@@ -27,9 +27,10 @@ export async function registerViewerRoutes(app: FastifyInstance): Promise<void> 
     decorateReply: false,
   });
 
-  // /viewer (no trailing slash) serves index.html
+  // /viewer (no trailing slash) — redirect to /viewer/ so @fastify/static handles it.
+  // Avoids sendFile (which is not decorated since we registered with decorateReply: false).
   app.get('/viewer', async (_request, reply) => {
-    return reply.sendFile('index.html');
+    reply.redirect('/viewer/');
   });
 
   app.get('/', async (_request, reply) => {
