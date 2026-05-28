@@ -1,0 +1,19 @@
+name: debug-503-on-search
+description: |
+  Given a 503 from /api/v1/search, point the agent at the right adapters
+  to investigate.
+prompt: |
+  The /api/v1/search endpoint just started returning 503 in production.
+  Where would you start looking in this codebase? What adapter or
+  initialization path would you suspect first?
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "AISearchAdapter"
+    - "ensureInitialized"
+    - "ai-search.adapter"
+  orAfterTurns: 12
+expected:
+  - identifies the AI Search adapter as the likely cause
+  - mentions ensureInitialized / healthCheck path

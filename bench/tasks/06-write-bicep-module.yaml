@@ -1,0 +1,18 @@
+name: write-bicep-module
+description: |
+  Agent asked about the IaC pattern used for adding Azure resources.
+prompt: |
+  I need to add a new Azure resource (say, Service Bus) to the
+  infrastructure. What Bicep pattern does this repo use? Where should
+  the new module live and how is it consumed?
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "infra/modules"
+    - "main.bicep"
+    - "module "
+  orAfterTurns: 12
+expected:
+  - identifies infra/modules/ as the module location
+  - notes main.bicep wires modules with `module name 'modules/X.bicep' = {...}`

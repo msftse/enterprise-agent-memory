@@ -1,0 +1,18 @@
+name: multi-step-refactor
+description: |
+  Wide refactor across multiple files — memory should help less here, so
+  the baseline is competitive. Honest test of when memory does NOT win.
+prompt: |
+  Walk me through what would need to change to rename the
+  Memory.concepts field to Memory.tags across the entire codebase.
+  Don't actually edit — just enumerate the files and the kinds of
+  changes needed.
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "Memory"
+    - "tags"
+  orAfterTurns: 16
+expected:
+  - enumerates types/models.ts, the adapter index, route handlers, viewer

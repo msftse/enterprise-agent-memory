@@ -1,0 +1,17 @@
+name: auth-flow-recall
+description: |
+  Agent asked to explain how authentication works in the codebase.
+  Should expose the API-key middleware and the x-api-key header.
+prompt: |
+  How does authentication work in this codebase? Be specific about the
+  middleware and the header used. Look at the source files if you need to.
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "x-api-key"
+    - "API-key middleware"
+  orAfterTurns: 12
+expected:
+  - mentions the api-key middleware
+  - mentions the x-api-key header

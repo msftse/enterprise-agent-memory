@@ -14,8 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src/",
     "lint:fix": "biome check --write src/",
-    "deploy": "az containerapp update --name $APP_NAME --resource-group $RESOURCE_GROUP --image $ACR_IMAGE",
-    "bench": "tsx bench/run.ts"
+    "deploy": "az containerapp update --name $APP_NAME --resource-group $RESOURCE_GROUP --image $ACR_IMAGE"
   },
   "repository": {
     "type": "git",
@@ -49,7 +48,6 @@
     "nanoid": "^5.0.9",
     "openai": "^4.104.0",
     "pino": "^9.6.0",
-    "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

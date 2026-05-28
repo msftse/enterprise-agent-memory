@@ -1,0 +1,16 @@
+name: cosmos-partition-key
+description: |
+  Agent asked about Cosmos partition strategy. Should identify tenantId.
+prompt: |
+  What is the Cosmos DB partition key strategy in this repo? Which field
+  is the partition key, and across which containers?
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "tenantId"
+    - "/tenantId"
+  orAfterTurns: 12
+expected:
+  - identifies tenantId as the partition key
+  - notes it applies across all containers

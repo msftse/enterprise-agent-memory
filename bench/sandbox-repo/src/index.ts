@@ -19,7 +19,6 @@ import { registerAdminRoutes } from './routes/admin.routes.js';
 import { registerViewerRoutes } from './routes/viewer.routes.js';
 import { registerSavingsRoutes } from './routes/savings.routes.js';
 import { registerScalabilityRoutes } from './routes/scalability.routes.js';
-import { registerBenchmarksRoutes } from './routes/benchmarks.routes.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -88,7 +87,6 @@ async function main(): Promise<void> {
   registerAdminRoutes(app, cosmos, search, blobStorage);
   registerSavingsRoutes(app, cosmos);
   registerScalabilityRoutes(app, runtimeStats);
-  registerBenchmarksRoutes(app, cosmos);
 
   // Start
   const address = await app.listen({ port: config.PORT, host: '0.0.0.0' });

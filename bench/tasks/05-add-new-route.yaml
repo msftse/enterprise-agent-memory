@@ -1,0 +1,18 @@
+name: add-new-route
+description: |
+  Agent asked how to add a new admin endpoint following the existing pattern.
+prompt: |
+  How would I add a new GET /api/v1/admin/extras endpoint that returns
+  some extra service detail? What's the existing pattern in this repo
+  for registering admin routes?
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "registerAdminRoutes"
+    - "admin.routes"
+    - "requireRole"
+  orAfterTurns: 12
+expected:
+  - points to admin.routes.ts and the registerAdminRoutes pattern
+  - mentions requireRole gating

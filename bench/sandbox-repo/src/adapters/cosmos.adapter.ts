@@ -9,7 +9,6 @@ const CONTAINERS = [
   { id: 'graph-nodes', partitionKey: '/tenantId' },
   { id: 'graph-edges', partitionKey: '/tenantId' },
   { id: 'audit-entries', partitionKey: '/tenantId' },
-  { id: 'benchmarks', partitionKey: '/tenantId' },
 ] as const;
 
 export class CosmosAdapter {
@@ -112,35 +111,6 @@ export class CosmosAdapter {
     await this.ensureInitialized();
     const container = this.getContainer(containerName);
     await container.item(id, tenantId).delete();
-  }
-
-  // Phase 2 (Wave 3): persist benchmark runs.
-  async createBenchmark(tenantId: string, run: unknown): Promise<void> {
-    await this.ensureInitialized();
-    const r = run as { id: string };
-    await this.getContainer('benchmarks').items.create({ ...(run as object), tenantId });
-    void r.id; // suppress unused
-  }
-
-  async latestBenchmark(tenantId: string): Promise<unknown | null> {
-    await this.ensureInitialized();
-    const { resources } = await this.getContainer('benchmarks').items.query<unknown>({
-      query: 'SELECT TOP 1 * FROM c WHERE c.tenantId = @t ORDER BY c.ranAt DESC',
-      parameters: [{ name: '@t', value: tenantId }],
-    }).fetchAll();
-    return resources[0] ?? null;
-  }
-
-  async listBenchmarks(tenantId: string, limit: number): Promise<unknown[]> {
-    await this.ensureInitialized();
-    const { resources } = await this.getContainer('benchmarks').items.query<unknown>({
-      query: 'SELECT TOP @limit * FROM c WHERE c.tenantId = @t ORDER BY c.ranAt DESC',
-      parameters: [
-        { name: '@t', value: tenantId },
-        { name: '@limit', value: limit },
-      ],
-    }).fetchAll();
-    return resources;
   }
 
   // Phase 2: fetch the savings-relevant fields for all memories in a tenant.

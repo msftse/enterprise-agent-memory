@@ -1,0 +1,19 @@
+name: implementation-decision
+description: |
+  Architecture decision question. Asks the agent to justify a choice
+  against the codebase's existing patterns.
+prompt: |
+  Should the audit log live in Cosmos or in Blob storage? Justify your
+  answer against the existing choices in this codebase. Be specific
+  about which file or files show how this is currently done.
+toolsetA: [read, grep, bash]
+toolsetB: [read, grep, bash, eam_recall]
+stopWhen:
+  containsAny:
+    - "Blob"
+    - "audit"
+    - "writeAuditEntry"
+  orAfterTurns: 14
+expected:
+  - identifies that audit entries are written to Blob storage
+  - cites writeAuditEntry in blob-storage.adapter
